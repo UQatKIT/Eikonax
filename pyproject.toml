@@ -1,25 +1,42 @@
 [project]
+authors = [{name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu"}]
+description = "Add a short description here"
 name = "eikonax"
+requires-python = ">= 3.12"
 version = "0.1.0"
-description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = [
-    "chex>=0.1.86",
-    "equinox>=0.11.5",
-    "jax>=0.4.31",
-    "numpy>=2.1.1",
-]
+license = {text = "MIT License"}
+dependencies = []
 
 [build-system]
-requires = ["hatchling"]
 build-backend = "hatchling.build"
+requires = ["hatchling"]
 
-[tool.uv]
-dev-dependencies = [
-    "pytest>=8.3.2",
-    "ruff>=0.6.4",
-]
-environments = [
-    "sys_platform == 'linux'",
-]
+[tool.pixi.project]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+eikonax = { path = ".", editable = true }
+
+[tool.pixi.tasks]
+
+[tool.pixi.dependencies]
+jax = ">=0.4.31,<0.5"
+chex = ">=0.1.86,<0.2"
+equinox = ">=0.11.5,<0.12"
+numpy = ">=2.1.1,<3"
+
+[tool.pixi.feature.development.dependencies]
+pytest = "*"
+ruff = "*"
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+development = { features = ["development"], solve-group = "default" }
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.pydocstyle]
+convention = "google"

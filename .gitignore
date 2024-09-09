@@ -1,5 +1,5 @@
-# Created by https://www.toptal.com/developers/gitignore/api/linux,python,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=linux,python,visualstudiocode
+# Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,linux
+# Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode,linux
 
 ### Linux ###
 *~
@@ -207,4 +207,8 @@ pyrightconfig.json
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/linux,python,visualstudiocode
+# End of https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,linux
+
+
+# pixi environments
+.pixi
