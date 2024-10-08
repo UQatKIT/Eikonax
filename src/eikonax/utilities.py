@@ -1,5 +1,3 @@
-from functools import partial
-
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -54,12 +52,13 @@ def get_adjacent_vertex_data(simplices: jnp.ndarray, num_vertices: int) -> jnp.n
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_softmin(args: jnp.ndarray, order: int) -> float:
+def compute_softmin(args: jnp.ndarray, min_arg: int, order: int) -> float:
     assert (
         len(args.shape) == 1
     ), f"Input arguments must be a 1D array, but shape has length {len(args.shape)}"
-    nominator = jnp.where(args == jnp.inf, 0, args * jnp.exp(-order * args))
-    denominator = jnp.where(args == jnp.inf, 0, jnp.exp(-order * args))
+    arg_diff = min_arg - args
+    nominator = jnp.where(args == jnp.inf, 0, args * jnp.exp(order * arg_diff))
+    denominator = jnp.where(args == jnp.inf, 0, jnp.exp(order * arg_diff))
     soft_value = jnp.sum(nominator) / jnp.sum(denominator)
     return soft_value
 
@@ -69,3 +68,12 @@ def compute_soft_drelu(value: float, order: int) -> float:
     soft_value = jnp.log(1 + jnp.exp(order * value)) / order
     soft_value = 1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order
     return soft_value
+
+
+# --------------------------------------------------------------------------------------------------
+_softmin_grad = jax.grad(compute_softmin, argnums=0)
+
+def compute_softmin_grad(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
+    raw_grad = _softmin_grad(args, min_arg, order)
+    softmin_grad = jnp.where(args < jnp.inf, raw_grad, 0)
+    return softmin_grad

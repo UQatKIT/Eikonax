@@ -8,7 +8,7 @@ from pathlib import Path
 @dataclass
 class LoggerSettings:
     log_to_console: bool
-    logfile_path : Path | None
+    logfile_path: Path | None
 
 
 @dataclass
@@ -20,7 +20,6 @@ class LogValue:
 
 # ==================================================================================================
 class Logger:
-
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
@@ -33,7 +32,6 @@ class Logger:
         if not self._pylogger.hasHandlers():
             if logger_settings.log_to_console:
                 console_handler = logging.StreamHandler(sys.stdout)
-                console_handler.setFormatter
                 console_handler.setLevel(logging.INFO)
                 console_handler.setFormatter(formatter)
                 self._pylogger.addHandler(console_handler)
@@ -41,7 +39,8 @@ class Logger:
             if logger_settings.logfile_path is not None:
                 logger_settings.logfile_path.parent.mkdir(parents=True, exist_ok=True)
                 file_handler = logging.FileHandler(
-                    self._logfile_path, mode="w"
+                    self._logfile_path,
+                    mode="w",
                 )
                 file_handler.setFormatter(formatter)
                 file_handler.setLevel(logging.INFO)

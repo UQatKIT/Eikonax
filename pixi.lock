@@ -1026,7 +1026,7 @@ packages:
   name: eikonax
   version: 0.1.0
   path: .
-  sha256: 78bb1471600df5e13ab2b32add7286f2446a7fee9ef5168a17d2772a98e5f232
+  sha256: 7a9f069a92a76dbad6728a2bfd8718c12c4dd025f81455dc43fc682db483ac54
   requires_python: '>=3.12'
   editable: true
 - kind: conda

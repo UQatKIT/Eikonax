@@ -62,7 +62,7 @@ class LinearTensorField(BaseTensorField):
                 f"does not match field dimension ({field_data.dimension}) "
                 f"times number of simplices ({field_data.num_simplices})"
             )
-        
+
         parameter_vector = jnp.reshape(
             parameter_vector, (field_data.num_simplices, field_data.dimension)
         )
@@ -84,7 +84,7 @@ class LinearTensorField(BaseTensorField):
     # ----------------------------------------------------------------------------------------------
     @staticmethod
     def assemble_jacobian(
-        parameter_vector: jnp.ndarray, field_data: BaseTensorFieldData
+        parameter_vector: jnp.ndarray, field_data: BaseTensorFieldData,
     ) -> jnp.array:
         pass
 
