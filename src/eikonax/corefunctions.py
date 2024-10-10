@@ -1,7 +1,38 @@
+import chex
 import jax
 import jax.numpy as jnp
 
-from . import utilities
+
+# ==================================================================================================
+@chex.dataclass
+class MeshData:
+    vertices: jnp.ndarray
+    adjacent_vertex_inds: jnp.ndarray
+
+
+@chex.dataclass
+class InitialSites:
+    inds: jnp.ndarray
+    values: jnp.ndarray
+
+
+# ==================================================================================================
+def compute_softmin(args: jnp.ndarray, min_arg: int, order: int) -> float:
+    assert (
+        len(args.shape) == 1
+    ), f"Input arguments must be a 1D array, but shape has length {len(args.shape)}"
+    arg_diff = min_arg - args
+    nominator = jnp.where(args == jnp.inf, 0, args * jnp.exp(order * arg_diff))
+    denominator = jnp.where(args == jnp.inf, 0, jnp.exp(order * arg_diff))
+    soft_value = jnp.sum(nominator) / jnp.sum(denominator)
+    return soft_value
+
+
+# --------------------------------------------------------------------------------------------------
+def compute_soft_drelu(value: float, order: int) -> float:
+    soft_value = jnp.log(1 + jnp.exp(order * value)) / order
+    soft_value = 1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order
+    return soft_value
 
 
 # --------------------------------------------------------------------------------------------------
@@ -35,8 +66,8 @@ def compute_optimal_update_parameters(
     )
 
     lambda_1, lambda_2 = _compute_optimal_update_parameters(solution_values, M, edges)
-    lambda_1_clipped = utilities.compute_soft_drelu(lambda_1, order)
-    lambda_2_clipped = utilities.compute_soft_drelu(lambda_2, order)
+    lambda_1_clipped = compute_soft_drelu(lambda_1, order)
+    lambda_2_clipped = compute_soft_drelu(lambda_2, order)
     lower_bounds = -cutoff
     upper_bound = 1 + cutoff
 
@@ -123,10 +154,11 @@ def compute_update_from_adjacent_simplex(
     for i, lambda_candidate in enumerate(lambda_array):
         update = compute_fixed_update(lambda_candidate, solution_values, M, edges)
         update_candidates = update_candidates.at[i].set(update)
-    assert update_candidates.shape == (4,), (
-        f"Update candidates have shape {update_candidates.shape}, but need to have shape (4,)"
-    )
+    assert update_candidates.shape == (
+        4,
+    ), f"Update candidates have shape {update_candidates.shape}, but need to have shape (4,)"
     return update_candidates, lambda_array
+
 
 # --------------------------------------------------------------------------------------------------
 def compute_vertex_update_candidates(
@@ -146,14 +178,10 @@ def compute_vertex_update_candidates(
     lambda_arrays = jnp.zeros((max_num_adjacent_simplices, 4))
 
     for i, indices in enumerate(adjacent_vertex_inds):
-        simplex_update_candidates, lambda_array_candidates = (
-            compute_update_from_adjacent_simplex(
-                indices, old_solution_vector, vertices, tensor_field, drelu_order, drelu_cutoff
-            )
+        simplex_update_candidates, lambda_array_candidates = compute_update_from_adjacent_simplex(
+            indices, old_solution_vector, vertices, tensor_field, drelu_order, drelu_cutoff
         )
-        vertex_update_candidates = vertex_update_candidates.at[i, :].set(
-            simplex_update_candidates
-        )
+        vertex_update_candidates = vertex_update_candidates.at[i, :].set(simplex_update_candidates)
         lambda_arrays = lambda_arrays.at[i, :].set(lambda_array_candidates)
 
     active_simplex_inds = adjacent_vertex_inds[:, 3]
@@ -166,9 +194,16 @@ def compute_vertex_update_candidates(
     return vertex_update_candidates
 
 
-# --------------------------------------------------------------------------------------------------
+# ==================================================================================================
 grad_update_lambda = jax.grad(compute_fixed_update, argnums=0)
 grad_update_solution = jax.grad(compute_fixed_update, argnums=1)
 grad_update_parameter = jax.grad(compute_fixed_update, argnums=2)
 jac_lambda_solution = jax.jacobian(compute_optimal_update_parameters, argnums=0)
 jac_lambda_parameter = jax.jacobian(compute_optimal_update_parameters, argnums=1)
+
+# --------------------------------------------------------------------------------------------------
+_softmin_grad = jax.grad(compute_softmin, argnums=0)
+def compute_softmin_grad(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
+    raw_grad = _softmin_grad(args, min_arg, order)
+    softmin_grad = jnp.where(args < jnp.inf, raw_grad, 0)
+    return softmin_grad

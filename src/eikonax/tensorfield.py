@@ -1,48 +1,79 @@
 from abc import ABC, abstractmethod
 
-import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import scipy as sp
 
 
 # ==================================================================================================
-@chex.dataclass
-class BaseTensorFieldData(ABC):
-    dimension: int
-    num_simplices: int
-
-
-@chex.dataclass
-class LinearTensorFieldData(BaseTensorFieldData):
-    pass
-
-
-# ==================================================================================================
-class BaseTensorField(ABC):
-    # ----------------------------------------------------------------------------------------------
-    @staticmethod
+class BaseVectorToSimplicesMap(ABC, eqx.Module):
     @abstractmethod
-    def assemble_field(
-        parameter_vector: jnp.ndarray, field_data: BaseTensorFieldData
-    ) -> jnp.ndarray:
+    def map(self, simplex_ind: int, parameters: jnp.ndarray) -> int | jnp.ndarray:
+        pass
+
+
+# --------------------------------------------------------------------------------------------------
+class LinearScalarMap(BaseVectorToSimplicesMap):
+    def map(self, simplex_ind: int, parameters: jnp.ndarray) -> int:
+        parameter = parameters[simplex_ind]
+        return parameter
+
+
+# ==================================================================================================
+class BaseSimplexTensor(ABC, eqx.Module):
+    _dimension: int
+
+    def __init__(self, dimension: int):
+        self._dimension = dimension
+
+    @abstractmethod
+    def assemble(self, simplex_ind: int, parameters: float | jnp.ndarray) -> jnp.ndarray:
+        pass
+
+    @abstractmethod
+    def derivative(self, simplex_ind: int, parameters: float | jnp.ndarray) -> jnp.ndarray:
+        pass
+
+
+# --------------------------------------------------------------------------------------------------
+class LinearScalarSimplexTensor(BaseSimplexTensor):
+    def assemble(self, simplex_ind: int, parameters: float) -> jnp.ndarray:
+        tensor = parameters * jnp.identity(self._dimension)
+        return tensor
+
+    def derivative(self, simplex_ind: int, parameters: float) -> jnp.ndarray:
+        derivative = jnp.expand_dims(jnp.identity(self._dimension), axis=-1)
+        return derivative
+
+
+# ==================================================================================================
+class BaseTensorField(ABC, eqx.Module):
+    _num_simplices: int
+    _simplex_inds: jnp.ndarray
+    _vector_to_simplices_map: BaseVectorToSimplicesMap
+    _simplex_tensor: BaseSimplexTensor
+
+    def __init__(
+        self,
+        num_simplices: int,
+        vector_to_simplices_map: BaseVectorToSimplicesMap,
+        simplex_tensor: BaseSimplexTensor,
+    ):
+        self._num_simplices = num_simplices
+        self._simplex_inds = jnp.arange(num_simplices)
+        self._vector_to_simplices_map = vector_to_simplices_map
+        self._simplex_tensor = simplex_tensor
+
+    # ----------------------------------------------------------------------------------------------
+    @abstractmethod
+    def assemble_field(self, parameter_vector: jnp.ndarray) -> jnp.ndarray:
         pass
 
     # ----------------------------------------------------------------------------------------------
-    @staticmethod
     @abstractmethod
     def assemble_jacobian(
-        parameter_vector: jnp.ndarray, field_data: BaseTensorFieldData
-    ) -> jnp.ndarray:
-        pass
-
-    # ----------------------------------------------------------------------------------------------
-    @staticmethod
-    @abstractmethod
-    def assemble_hessian(
-        parameter_vector: jnp.ndarray,
-        direction_vector: jnp.ndarray,
-        field_data: BaseTensorFieldData,
+        self, partial_derivative_tensor_field: jnp.array, parameter_vector: jnp.ndarray
     ) -> jnp.ndarray:
         pass
 
@@ -50,49 +81,50 @@ class BaseTensorField(ABC):
 # ==================================================================================================
 class LinearTensorField(BaseTensorField):
     # ----------------------------------------------------------------------------------------------
-    @staticmethod
     @eqx.filter_jit
-    def assemble_field(
-        parameter_vector: jnp.array, field_data: LinearTensorFieldData
-    ) -> jnp.ndarray:
-        # This is a compile time exception, as all field-data members are static
-        if parameter_vector.size != field_data.dimension * field_data.num_simplices:
-            raise ValueError(
-                f"Size of parameter vector ({parameter_vector.size}) "
-                f"does not match field dimension ({field_data.dimension}) "
-                f"times number of simplices ({field_data.num_simplices})"
-            )
+    def assemble_field(self, parameter_vector: jnp.ndarray) -> jnp.ndarray:
+        simplex_map = jax.vmap(self._vector_to_simplices_map.map, in_axes=(0, None))
+        field_assembly = jax.vmap(self._simplex_tensor.assemble, in_axes=(0, 0))
+        simplex_params = simplex_map(self._simplex_inds, parameter_vector)
+        tensor_field = field_assembly(self._simplex_inds, simplex_params)
 
-        parameter_vector = jnp.reshape(
-            parameter_vector, (field_data.num_simplices, field_data.dimension)
-        )
-        vectorized_assembly = jax.vmap(jnp.diag, in_axes=0)
-        tensor_field = vectorized_assembly(parameter_vector)
-
-        # Compile-time assertions for tensor field shape
-        assert tensor_field.shape == (
-            field_data.num_simplices,
-            field_data.dimension,
-            field_data.dimension,
-        ), (
-            f"tensor field shape {tensor_field.shape} does not match"
-            f"number of simplices {field_data.num_simplices} "
-            f"and dimension {field_data.dimension} squared"
-        )
         return tensor_field
 
     # ----------------------------------------------------------------------------------------------
-    @staticmethod
     def assemble_jacobian(
-        parameter_vector: jnp.ndarray, field_data: BaseTensorFieldData,
+        self,
+        number_of_vertices: int,
+        partial_derivative_tensor_field: jnp.array,
+        parameter_vector: jnp.ndarray,
     ) -> jnp.array:
-        pass
+        row_inds, simplex_inds, tensor_values = partial_derivative_tensor_field
+        values, col_inds = self._assemble_jacobian(
+            simplex_inds,
+            tensor_values,
+            parameter_vector,
+        )
+
+        jacobian = sp.sparse.coo_matrix(
+            (values, (row_inds, col_inds)),
+            shape=(number_of_vertices, parameter_vector.size),
+        )
+        return jacobian
 
     # ----------------------------------------------------------------------------------------------
-    @staticmethod
-    def assemble_hessian(
+    @eqx.filter_jit
+    def _assemble_jacobian(
+        self,
+        simplex_inds: jnp.array,
+        values: jnp.array,
         parameter_vector: jnp.ndarray,
-        direction_vector: jnp.ndarray,
-        field_data: BaseTensorFieldData,
-    ) -> jnp.ndarray:
-        pass
+    ) -> jnp.array:
+        simplex_map = jax.vmap(self._vector_to_simplices_map.map, in_axes=(0, None))
+        field_derivative = jax.vmap(self._simplex_tensor.derivative, in_axes=(0, 0))
+        simplex_params = simplex_map(simplex_inds, parameter_vector)
+        tensor_array = field_derivative(simplex_inds, simplex_params)
+        partial_derivative = jnp.einsum("ijk,ijkl->il", values, tensor_array)
+        partial_derivative = partial_derivative.flatten()
+        ind_array = jnp.arange(parameter_vector.size)
+        col_inds = simplex_map(simplex_inds, ind_array).flatten()
+
+        return partial_derivative, col_inds
