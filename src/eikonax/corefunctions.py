@@ -377,18 +377,7 @@ jac_lambda_parameter = jax.jacobian(compute_optimal_update_parameters, argnums=1
 # --------------------------------------------------------------------------------------------------
 _grad_softmin = jax.grad(compute_softmin, argnums=0)
 def grad_softmin(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
-    """The gradient of the softmin function requires further masking of infeasible values.
-
-    See `compute_softmin` for a detailed description of the softmin function and its purpose.
-
-    Args:
-        args (jnp.ndarray): Input arguments of softmin function
-        min_arg (int): Actual minimum argument, necessary for numerical stability
-        order (int): Approximation order of the softmin function
-
-    Returns:
-        jnp.ndarray: Gradient of the softmin function w.r.t. input arguments
-    """
+    """The gradient of the softmin function requires further masking of infeasible values."""
     raw_grad = _grad_softmin(args, min_arg, order)
     softmin_grad = jnp.where(args < jnp.inf, raw_grad, 0)
     return softmin_grad
