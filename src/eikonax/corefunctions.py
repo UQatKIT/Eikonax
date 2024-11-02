@@ -1,3 +1,9 @@
+"""_summary_
+
+Returns:
+    _type_: _description_
+"""
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -6,18 +12,60 @@ import jax.numpy as jnp
 # ==================================================================================================
 @chex.dataclass
 class MeshData:
+    """Data characterizing a computational mesh from a vertex-centered perspective.
+
+    Attributes:
+        vertices: The coordinates of the vertices in the mesh. The dimension of this array is
+            (num_vertices, dim), where num_vertices is the number of vertices in the mesh and dim
+            is the dimension of the space in which the mesh is embedded.
+        adjacency_data: Adjacency data for each vertex. This is the list of adjacent triangles,
+            together with the two vertices that span the respective triangle with the current
+            vertex. The dimension of this array is (num_vertices, max_num_adjacent_simplices, 4),
+            where max_num_adjacent_simplices is the maximum number of simplices that are adjacent
+            to a vertex in the mesh. All entries have this maximum size, as JAX only operates on
+            homogeneous data structures. If a vertex has fewer than max_num_adjacent_simplices
+            adjacent simplices, the remaining entries are filled with -1.
+    """
     vertices: jnp.ndarray
-    adjacent_vertex_inds: jnp.ndarray
+    adjacency_data: jnp.ndarray
 
 
 @chex.dataclass
 class InitialSites:
+    """Initial site info.
+
+    For a unique solution of the state-constrained Eikonal equation, the solution values need to be 
+    given a number of initial points (at least one). Multiple initial sites need to be compatible,
+    in the sense that the arrival time from another source is not smaller than the initial value
+    itself.
+
+    Attributes:
+        inds: The indices of the nodes where the initial sites are placed..
+        values: The values of the initial sites.
+    """
     inds: jnp.ndarray
     values: jnp.ndarray
 
 
 # ==================================================================================================
 def compute_softmin(args: jnp.ndarray, min_arg: int, order: int) -> float:
+    """Numerically stable computation of the softmin function based on the Boltzmann operator.
+
+    This softmin function is applied to actual minimum values, meaning it does not have a purpose
+    on the evaluation level. It renders the minimum computation differentiable, however.
+    Importantly, the Boltzmann softmin is value preserving, meaning that the solution of the eikonal
+    equation is the same as for a hard minimum. As JAX works on homogeneous arrays only, non-minimal
+    values are also passed to this function. They are assumed to be masked as jnp.inf, which are
+    handled in a numerically stable way by this routine.
+
+    Args:
+        args (jnp.ndarray): Values to compute the soft minimum over
+        min_arg (int): The actual value of the minimum argument, necessary for numerical stability
+        order (int): Approximation order of the softmin function
+
+    Returns:
+        float: Soft minimum value
+    """
     assert (
         len(args.shape) == 1
     ), f"Input arguments must be a 1D array, but shape has length {len(args.shape)}"
@@ -29,16 +77,38 @@ def compute_softmin(args: jnp.ndarray, min_arg: int, order: int) -> float:
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_soft_drelu(value: float, order: int) -> float:
+def compute_softminmax(value: float, order: int) -> float:
+    """Smooth double ReLU-type approximation that restricts a variable to the interval [0, 1].
+
+    The method is numerically stable, obeys the value range, and doe not introduce any new extrema.
+
+    Args:
+        value (float): variable to restrict to range [0,1]
+        order (int): Approximation order of the smooth approximation
+
+    Returns:
+        float: Smoothed/restricted value
+    """
     soft_value = jnp.log(1 + jnp.exp(order * value)) / order
     soft_value = 1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order
     return soft_value
 
 
 # --------------------------------------------------------------------------------------------------
-def get_adjacent_edges(
+def compute_edges(
     i: int, j: int, k: int, vertices: jnp.ndarray
 ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Compute the edged of a triangle from vertex indices and coordinates.
+
+    Args:
+        i (int): First vertex index of a triangle
+        j (int): Second vertex index of a triangle
+        k (int): Third vertex index of a triangle
+        vertices (jnp.ndarray): Array of all vertex coordinates
+
+    Returns:
+        tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Triangle edge vectors
+    """
     e_ji = vertices[i] - vertices[j]
     e_ki = vertices[i] - vertices[k]
     e_jk = vertices[k] - vertices[j]
@@ -50,26 +120,49 @@ def get_adjacent_edges(
 # --------------------------------------------------------------------------------------------------
 def compute_optimal_update_parameters(
     solution_values: jnp.ndarray,
-    M: jnp.ndarray,
+    parameter_tensor: jnp.ndarray,
     edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
-    order: int,
-    cutoff: float,
+    softminmax_order: int,
+    softminmax_cutoff: float,
 ) -> jnp.ndarray:
+    """Compute position parameter for update of a node within a specific triangle.
+
+    For a given vertex i and adjacent triangle, we compute the update for the solution of the
+    Eikonal as propagating from a point on the connecting edge of the opposite vertices j and k.
+    We thereby assume the solution value to vary linearly on that dge. The update parameter in [0,1]
+    indicates the optimal linear combination of the solution values at j and k, in the sense that
+    the solution value at i is minimized. As the underlying optimization problem is constrained,
+    we compute the solutions of the unconstrained problem, as well as the boundary values. The
+    former are constrained to the feasible region [0,1] by a soft minmax function.
+    We further clip values lying to far outside the feasible region, by masking them with value -1.
+    This function is a wrapper, for the unconstrained solution values, it calls the implementation
+    function `_compute_optimal_update_parameters`.
+
+    Args:
+        solution_values (jnp.ndarray): Current solution values, as per the previous iteration
+        parameter_tensor (jnp.ndarray): Parameter tensor for the current triangle
+        edges (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): Edge vectors of the triangle under
+            consideration
+        softminmax_order (int): Order of the soft minmax function to be employed
+        softminmax_cutoff (float): Cutoff value beyond parameter values are considered infeasible
+            and masked with -1
+
+    Returns:
+        jnp.ndarray: All possible candidates for the update parameter, according to the solution
+            of the constrained optimization problem
+    """
     assert solution_values.shape == (
         2,
     ), f"Solution values need to have shape (2,), but have {solution_values.shape}"
     assert (len(edge.shape) == 1 for edge in edges), "Edges need to be 1D arrays"
-    assert len(M.shape) == 2, f"M needs to be a 2D array, bu has shape {M.shape}"
-    assert M.shape[0] == M.shape[1] == edges[0].shape[0], (
-        f"M needs to be a square matrix, with dimensions matching edges, "
-        f"but M has shape {M.shape} and first edge has shape {edges[0].shape}"
-    )
 
-    lambda_1, lambda_2 = _compute_optimal_update_parameters(solution_values, M, edges)
-    lambda_1_clipped = compute_soft_drelu(lambda_1, order)
-    lambda_2_clipped = compute_soft_drelu(lambda_2, order)
-    lower_bounds = -cutoff
-    upper_bound = 1 + cutoff
+    lambda_1, lambda_2 = _compute_optimal_update_parameters(
+        solution_values, parameter_tensor, edges
+    )
+    lambda_1_clipped = compute_softminmax(lambda_1, softminmax_order)
+    lambda_2_clipped = compute_softminmax(lambda_2, softminmax_order)
+    lower_bounds = -softminmax_cutoff
+    upper_bound = 1 + softminmax_cutoff
 
     lambda_1_clipped = jnp.where(
         (lambda_1 < lower_bounds) | (lambda_1 > upper_bound), -1, lambda_1_clipped
@@ -87,43 +180,28 @@ def compute_optimal_update_parameters(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_fixed_update(
-    lambda_value: float,
-    solution_values: jnp.ndarray,
-    M: jnp.ndarray,
-    edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
-) -> float:
-    assert solution_values.shape == (
-        2,
-    ), f"Solution values need to have shape (2,), but have {solution_values.shape}"
-    assert M.shape[0] == M.shape[1] == edges[0].shape[0], (
-        f"M needs to be a square matrix, with dimensions matching edges, "
-        f"but M has shape {M.shape} and first edge has shape {edges[0].shape}"
-    )
-    u_j, u_k = solution_values
-    e_ji, _, e_jk = edges
-    diff_vector = e_ji - lambda_value * e_jk
-    transport_term = jnp.sqrt(jnp.dot(diff_vector, M @ diff_vector))
-    update = lambda_value * u_k + (1 - lambda_value) * u_j + transport_term
-    assert update.shape == (), f"Update needs to be a scalar, but has shape {update.shape}"
-    return update
-
-
-# --------------------------------------------------------------------------------------------------
 def _compute_optimal_update_parameters(
     solution_values: jnp.ndarray,
-    M: jnp.ndarray,
+    parameter_tensor: jnp.ndarray,
     edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
 ) -> tuple[float, float]:
+    """Compute the optimal update parameter for the solution of the Eikonal equation.
+
+    The function works for the update within a given triangle. The solutions of the unconstrained
+    minimization problem are given as the roots of a quadratic polynomial. They may or may not
+    lie inside the feasible region [0,1]. The function returns both solutions, which are then
+    further processed in the calling wrapper.
+    """
     u_j, u_k = solution_values
     _, e_ki, e_jk = edges
     delta_u = u_k - u_j
-    a_1 = jnp.dot(e_jk, M @ e_jk)
-    a_2 = jnp.dot(e_jk, M @ e_ki)
-    a_3 = jnp.dot(e_ki, M @ e_ki)
+    a_1 = jnp.dot(e_jk, parameter_tensor @ e_jk)
+    a_2 = jnp.dot(e_jk, parameter_tensor @ e_ki)
+    a_3 = jnp.dot(e_ki, parameter_tensor @ e_ki)
 
     nominator = a_1 * a_3 - a_2**2
     denominator = a_1 - delta_u**2
+    # Treat imaginary roots as inf
     sqrt_term = jnp.where(denominator > 0, nominator / denominator, jnp.inf)
     c = delta_u * sqrt_term
 
@@ -133,26 +211,85 @@ def _compute_optimal_update_parameters(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_update_from_adjacent_simplex(
-    indices: jnp.ndarray,
+def compute_fixed_update(
+    solution_values: jnp.ndarray,
+    parameter_tensor: jnp.ndarray,
+    lambda_value: float,
+    edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+) -> float:
+    """Compute update for a given vertex, triangle, and update parameter.
+
+    The update value is given by the solution at a point  on the edge between the opposite vertices,
+    plus the travel time from that point to the vertices under consideration.
+
+    Args:
+        solution_values (jnp.ndarray): Current solution values at opposite vertices j and k,
+            as per the previous iteration
+        parameter_tensor (jnp.ndarray): Conductivity tensor for the current triangle
+        lambda_value (float): Optimal update parameter
+        edges (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): Edge vectors of the triangle under
+            consideration
+
+    Returns:
+        float: Updated solution value for the vertex under consideration
+    """
+    assert solution_values.shape == (
+        2,
+    ), f"Solution values need to have shape (2,), but have {solution_values.shape}"
+    u_j, u_k = solution_values
+    e_ji, _, e_jk = edges
+    diff_vector = e_ji - lambda_value * e_jk
+    transport_term = jnp.sqrt(jnp.dot(diff_vector, parameter_tensor @ diff_vector))
+    update = lambda_value * u_k + (1 - lambda_value) * u_j + transport_term
+    assert update.shape == (), f"Update needs to be a scalar, but has shape {update.shape}"
+    return update
+
+
+# --------------------------------------------------------------------------------------------------
+def compute_update_candidates_from_adjacent_simplex(
     old_solution_vector: jnp.ndarray,
-    vertices: jnp.ndarray,
     tensor_field: jnp.ndarray,
-    drelu_order: int,
-    drelu_cutoff: float,
+    adjacency_data: jnp.ndarray,
+    vertices: jnp.ndarray,
+    softminmax_order: int,
+    softminmax_cutoff: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
-    assert len(indices) == 4, f"Indices need to have length 4, but have length {len(indices)}"
-    i, j, k, s = indices
+    """Compute all possible update candidates from an adjacent triangle.
+
+    Given a vertex and an adjacent triangle, this method computes all optimal update parameter
+    candidates and the corresponding update values. To obey JAX's homogeneous array requirement,
+    update values are also computed for infeasible parameter values, and have to be masked in the
+    calling routine. This methods basically collects all results from the
+    `compute_optimal_update_parameters` and `compute_fixed_update` methods.
+
+    Args:
+        old_solution_vector (jnp.ndarray): Given solution vector, as per a previous iteration
+        tensor_field (jnp.ndarray): Array of all tensor fields
+        adjacency_data (jnp.ndarray): Index of one adjaccent triangle and corresponding vertices
+        vertices (jnp.ndarray): Array of all vertex coordinates
+        softminmax_order (int): Order of the soft minmax function for the update parameter, see
+            `compute_softminmax`
+        softminmax_cutoff (float): Cutoff value for the soft minmax computation, see
+            `compute_optimal_update_parameters`
+
+    Returns:
+        tuple[jnp.ndarray, jnp.ndarray]: Update values and parameter candidates from the given
+            triangle
+    """
+    assert (
+        len(adjacency_data) == 4
+    ), f"Indices need to have length 4, but have length {len(adjacency_data)}"
+    i, j, k, s = adjacency_data
     solution_values = jnp.array((old_solution_vector[j], old_solution_vector[k]))
-    edges = get_adjacent_edges(i, j, k, vertices)
-    M = tensor_field[s]
+    edges = compute_edges(i, j, k, vertices)
+    parameter_tensor = tensor_field[s]
     lambda_array = compute_optimal_update_parameters(
-        solution_values, M, edges, drelu_order, drelu_cutoff
+        solution_values, parameter_tensor, edges, softminmax_order, softminmax_cutoff
     )
     update_candidates = jnp.zeros(4)
 
     for i, lambda_candidate in enumerate(lambda_array):
-        update = compute_fixed_update(lambda_candidate, solution_values, M, edges)
+        update = compute_fixed_update(solution_values, parameter_tensor, lambda_candidate, edges)
         update_candidates = update_candidates.at[i].set(update)
     assert update_candidates.shape == (
         4,
@@ -163,28 +300,58 @@ def compute_update_from_adjacent_simplex(
 # --------------------------------------------------------------------------------------------------
 def compute_vertex_update_candidates(
     old_solution_vector: jnp.ndarray,
-    adjacent_vertex_inds: jnp.ndarray,
-    vertices: jnp.ndarray,
     tensor_field: jnp.ndarray,
-    drelu_order: int,
-    drelu_cutoff: int,
+    adjacency_data: jnp.ndarray,
+    vertices: jnp.ndarray,
+    softminmax_order: int,
+    softminmax_cutoff: int,
 ) -> jnp.ndarray:
-    max_num_adjacent_simplices = adjacent_vertex_inds.shape[0]
-    assert adjacent_vertex_inds.shape == (max_num_adjacent_simplices, 4), (
+    """Compute all update candidates for a given vertex.
+
+    This method combines all updates from adjacent triangles to a given vertex, as computed in the
+    function `compute_update_candidates_from_adjacent_simplex`. Infeasible candidates are masked
+    with jnp.inf.
+
+    Args:
+        old_solution_vector (jnp.ndarray): Given solution vector, as per a previous iteration
+        tensor_field (jnp.ndarray): Array of all tensor fields
+        adjacency_data (jnp.ndarray): Data of all adjacent triangles and corresponding vertices
+        vertices (jnp.ndarray): Array of all vertex coordinates
+        softminmax_order (int): Order of the soft minmax function for the update parameter, see
+            `compute_softminmax`
+        softminmax_cutoff (float): Cutoff value for the soft minmax computation, see
+            `compute_optimal_update_parameters`
+
+    Returns:
+        jnp.ndarray: All possible update values for the given vertex, infeasible vertices are masked
+            with jnp.inf
+    """
+    max_num_adjacent_simplices = adjacency_data.shape[0]
+    assert adjacency_data.shape == (max_num_adjacent_simplices, 4), (
         f"node-level adjacency data needs to have shape ({max_num_adjacent_simplices}, 4), "
-        f"but has shape {adjacent_vertex_inds.shape}"
+        f"but has shape {adjacency_data.shape}"
     )
     vertex_update_candidates = jnp.zeros((max_num_adjacent_simplices, 4))
     lambda_arrays = jnp.zeros((max_num_adjacent_simplices, 4))
 
-    for i, indices in enumerate(adjacent_vertex_inds):
-        simplex_update_candidates, lambda_array_candidates = compute_update_from_adjacent_simplex(
-            indices, old_solution_vector, vertices, tensor_field, drelu_order, drelu_cutoff
+    for i, indices in enumerate(adjacency_data):
+        simplex_update_candidates, lambda_array_candidates = (
+            compute_update_candidates_from_adjacent_simplex(
+                old_solution_vector,
+                tensor_field,
+                indices,
+                vertices,
+                softminmax_order,
+                softminmax_cutoff,
+            )
         )
         vertex_update_candidates = vertex_update_candidates.at[i, :].set(simplex_update_candidates)
         lambda_arrays = lambda_arrays.at[i, :].set(lambda_array_candidates)
 
-    active_simplex_inds = adjacent_vertex_inds[:, 3]
+    # Mask infeasible updates
+    # 1. Not an adjacent triangle, only buffer/fill value in adjacency data
+    # 2. Infeasible update parameter, indicated with -1
+    active_simplex_inds = adjacency_data[:, 3]
     vertex_update_candidates = jnp.where(
         (active_simplex_inds[..., None] != -1) & (lambda_arrays != -1),
         vertex_update_candidates,
@@ -195,15 +362,33 @@ def compute_vertex_update_candidates(
 
 
 # ==================================================================================================
-grad_update_lambda = jax.grad(compute_fixed_update, argnums=0)
-grad_update_solution = jax.grad(compute_fixed_update, argnums=1)
-grad_update_parameter = jax.grad(compute_fixed_update, argnums=2)
+"""Derivatives of elementary function based on JAX's AD capabilities."""
+# Derivative of update value function w.r.t. current solution values, 1x2
+grad_update_solution = jax.grad(compute_fixed_update, argnums=0)
+# Deritative of update value function w.r.t. parameter tensor, 1xDxD
+grad_update_parameter = jax.grad(compute_fixed_update, argnums=1)
+# Derivative of update value function w.r.t. update parameter, 1x1
+grad_update_lambda = jax.grad(compute_fixed_update, argnums=2)
+# Derivative of update parameter function w.r.t. current solution values, 2x2
 jac_lambda_solution = jax.jacobian(compute_optimal_update_parameters, argnums=0)
+# Derivative of update parameter function w.r.t. parameter tensor, 2xDxD
 jac_lambda_parameter = jax.jacobian(compute_optimal_update_parameters, argnums=1)
 
 # --------------------------------------------------------------------------------------------------
-_softmin_grad = jax.grad(compute_softmin, argnums=0)
-def compute_softmin_grad(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
-    raw_grad = _softmin_grad(args, min_arg, order)
+_grad_softmin = jax.grad(compute_softmin, argnums=0)
+def grad_softmin(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
+    """The gradient of the softmin function requires further masking of infeasible values.
+
+    See `compute_softmin` for a detailed description of the softmin function and its purpose.
+
+    Args:
+        args (jnp.ndarray): Input arguments of softmin function
+        min_arg (int): Actual minimum argument, necessary for numerical stability
+        order (int): Approximation order of the softmin function
+
+    Returns:
+        jnp.ndarray: Gradient of the softmin function w.r.t. input arguments
+    """
+    raw_grad = _grad_softmin(args, min_arg, order)
     softmin_grad = jnp.where(args < jnp.inf, raw_grad, 0)
     return softmin_grad
