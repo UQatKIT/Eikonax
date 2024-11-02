@@ -97,10 +97,10 @@ class LinearTensorField(BaseTensorField):
         partial_derivative_tensor_field: jnp.array,
         parameter_vector: jnp.ndarray,
     ) -> jnp.array:
-        row_inds, simplex_inds, tensor_values = partial_derivative_tensor_field
+        row_inds, simplex_inds, partial_derivative_tensor_values = partial_derivative_tensor_field
         values, col_inds = self._assemble_jacobian(
             simplex_inds,
-            tensor_values,
+            partial_derivative_tensor_values,
             parameter_vector,
         )
 

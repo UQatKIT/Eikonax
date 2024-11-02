@@ -14,8 +14,8 @@ class SolverData:
     loop_type: str
     max_value: float
     softmin_order: int
-    drelu_order: int
-    drelu_cutoff: float
+    softminmax_order: int
+    softminmax_cutoff: float
     max_num_iterations: int
     tolerance: float | None = None
     log_interval: int | None = None
@@ -31,12 +31,12 @@ class Solution:
 # ==================================================================================================
 class Solver(eqx.Module):
     _vertices: jnp.ndarray
-    _adjacent_vertex_inds: jnp.ndarray
+    _adjacency_data: jnp.ndarray
     _loop_type: str
     _max_value: float
     _softmin_order: int
-    _drelu_order: int
-    _drelu_cutoff: float
+    _softminmax_order: int
+    _softminmax_cutoff: float
     _max_num_iterations: int
     _initial_sites: corefunctions.InitialSites
     _tolerance: float | None
@@ -58,31 +58,37 @@ class Solver(eqx.Module):
                 f"Max number of iterations needs to be positive, "
                 f"but is {solver_data.max_num_iterations}"
             )
-        if solver_data.drelu_cutoff <= 0:
+        if solver_data.softminmax_cutoff <= 0:
             raise ValueError(
-                f"DReLU cutoff needs to be positive, but is {solver_data.drelu_cutoff}"
+                f"Softminmax cutoff needs to be positive, but is {solver_data.softminmax_cutoff}"
             )
-        if solver_data.drelu_order <= 0:
-            raise ValueError(f"DReLU order needs to be positive, but is {solver_data.drelu_order}")
+        if solver_data.softminmax_order <= 0:
+            raise ValueError(
+                f"Softminmax order needs to be positive, but is {solver_data.softminmax_order}"
+            )
         if solver_data.softmin_order <= 0:
             raise ValueError(
                 f"Softmin order needs to be positive, but is {solver_data.softmin_order}"
             )
-
         if solver_data.tolerance is not None and solver_data.tolerance <= 0:
             raise ValueError(f"Tolerance needs to be positive, but is {solver_data.tolerance}")
         if solver_data.log_interval is not None and solver_data.log_interval <= 0:
             raise ValueError(
                 f"Log interval needs to be positive, but is {solver_data.log_interval}"
             )
+        if mesh_data.adjacency_data.shape[0] != mesh_data.vertices.shape[0]:
+            raise ValueError(
+                f"Adjacency data array needs to have shape {mesh_data.vertices.shape[0]}, "
+                f"but has shape {mesh_data.adjacency_data.shape[0]}"
+            )
 
         self._vertices = mesh_data.vertices
-        self._adjacent_vertex_inds = mesh_data.adjacent_vertex_inds
+        self._adjacency_data = mesh_data.adjacency_data
         self._loop_type = solver_data.loop_type
         self._max_value = solver_data.max_value
         self._softmin_order = solver_data.softmin_order
-        self._drelu_order = solver_data.drelu_order
-        self._drelu_cutoff = solver_data.drelu_cutoff
+        self._softminmax_order = solver_data.softminmax_order
+        self._softminmax_cutoff = solver_data.softminmax_cutoff
         self._max_num_iterations = solver_data.max_num_iterations
         self._tolerance = solver_data.tolerance
         self._log_interval = solver_data.log_interval
@@ -102,7 +108,6 @@ class Solver(eqx.Module):
                 run_function = self._run_jitted_for_loop
             case "jitted_while":
                 run_function = self._run_jitted_while_loop
-            # Non-jitted while loop, additionally performs online logging
             case "nonjitted_while":
                 run_function = self._run_nonjitted_while_loop
             case _:
@@ -176,9 +181,7 @@ class Solver(eqx.Module):
         def cond_while(carry_args: tuple) -> bool:
             new_solution_vector, iteration_counter, tolerance, old_solution_vector, _ = carry_args
             tolerance = jnp.max(jnp.abs(new_solution_vector - old_solution_vector))
-            return (tolerance > self._tolerance) & (
-                iteration_counter < self._max_num_iterations
-            )
+            return (tolerance > self._tolerance) & (iteration_counter < self._max_num_iterations)
 
         initial_old_solution = jnp.zeros(initial_guess.shape)
         initial_tolerance = 0
@@ -205,9 +208,9 @@ class Solver(eqx.Module):
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
         if self._log_interval is None:
-            raise ValueError("Log interval must be provided for while loop")
+            raise ValueError("Log interval must be provided for non-jitted while loop")
         if self._logger is None:
-            raise ValueError("Logger must be provided for while loop")
+            raise ValueError("Logger must be provided for non-jitted while loop")
 
         iteration_counter = 0
         old_solution_vector = initial_guess
@@ -222,9 +225,7 @@ class Solver(eqx.Module):
         }
         self._logger.header(log_values)
 
-        while (tolerance > self._tolerance) and (
-            iteration_counter < self._max_num_iterations
-        ):
+        while (tolerance > self._tolerance) and (iteration_counter < self._max_num_iterations):
             new_solution_vector = self._compute_global_update(old_solution_vector, tensor_field)
             tolerance = jnp.max(jnp.abs(new_solution_vector - old_solution_vector))
             tolerance_vector.append(tolerance)
@@ -254,15 +255,11 @@ class Solver(eqx.Module):
             f"Solution vector needs to have shape {self._vertices.shape[0]}, "
             f"but has shape {solution_vector.shape}"
         )
-        assert self._adjacent_vertex_inds.shape[0] == self._vertices.shape[0], (
-            f"Adjacent simplex indix array needs to have shape {self._vertices.shape[0]}, "
-            f"but has shape {self._adjacent_vertex_inds.shape[0]}"
-        )
-        global_update_function = jax.vmap(self._compute_vertex_update, in_axes=(None, 0, None))
+        global_update_function = jax.vmap(self._compute_vertex_update, in_axes=(None, None, 0))
         global_update = global_update_function(
             solution_vector,
-            self._adjacent_vertex_inds,
             tensor_field,
+            self._adjacency_data,
         )
 
         assert global_update.shape == solution_vector.shape, (
@@ -275,18 +272,18 @@ class Solver(eqx.Module):
     def _compute_vertex_update(
         self,
         old_solution_vector: jnp.ndarray,
-        adjacent_vertex_inds: jnp.ndarray,
         tensor_field: jnp.ndarray,
+        adjacency_data: jnp.ndarray,
     ) -> float:
         vertex_update_candidates = corefunctions.compute_vertex_update_candidates(
             old_solution_vector,
-            adjacent_vertex_inds,
-            self._vertices,
             tensor_field,
-            self._drelu_order,
-            self._drelu_cutoff,
+            adjacency_data,
+            self._vertices,
+            self._softminmax_order,
+            self._softminmax_cutoff,
         )
-        self_update = jnp.expand_dims(old_solution_vector[adjacent_vertex_inds[0, 0]], axis=-1)
+        self_update = jnp.expand_dims(old_solution_vector[adjacency_data[0, 0]], axis=-1)
         vertex_update_candidates = jnp.concatenate(
             (self_update, vertex_update_candidates.flatten())
         )
