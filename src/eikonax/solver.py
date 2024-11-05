@@ -223,7 +223,7 @@ class Solver(eqx.Module):
             "iters": logging.LogValue(f"{'#Iterations:':<15}", "<15.3e"),
             "tol": logging.LogValue(f"{'Tolerance:':<15}", "<15.3e"),
         }
-        self._logger.header(log_values)
+        self._logger.header(log_values.values())
 
         while (tolerance > self._tolerance) and (iteration_counter < self._max_num_iterations):
             new_solution_vector = self._compute_global_update(old_solution_vector, tensor_field)
@@ -239,7 +239,7 @@ class Solver(eqx.Module):
                 log_values["time"].value = current_time
                 log_values["iters"].value = iteration_counter
                 log_values["tol"].value = tolerance
-                self._logger.log(log_values)
+                self._logger.log(log_values.values())
 
         tolerance_vector = jnp.array(tolerance_vector)
         return new_solution_vector, iteration_counter, tolerance_vector

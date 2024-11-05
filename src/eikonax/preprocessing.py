@@ -1,3 +1,5 @@
+"""_summary_."""
+
 import jax.numpy as jnp
 import numpy as np
 from scipy.spatial import Delaunay
@@ -7,6 +9,22 @@ from scipy.spatial import Delaunay
 def create_test_mesh(
     mesh_bounds: tuple[float, float], num_points: int
 ) -> tuple[np.ndarray, np.ndarray]:
+    """Create a simple test mesh with Scipy's Delauny functionality.
+
+    This methods creates a imple square mesh with Delauny triangulation.
+
+    Args:
+        mesh_bounds (tuple[float, float]): Mesh bounds for both directions
+        num_points (int): Number of vertices for both directions
+
+    Raises:
+        ValueError: Checks that mesh bounds have correct dimension
+        ValueError: Checks that mesh bounds are provided correctly
+        ValueError: Checks that at leas two mesh points are chosen
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: Array of vertex coordinates and array of simplex indices
+    """
     if len(mesh_bounds) != 2:
         raise ValueError(f"Mesh bounds must be a tuple with two elements, not {len(mesh_bounds)}")
     if mesh_bounds[0] >= mesh_bounds[1]:
@@ -28,6 +46,23 @@ def create_test_mesh(
 
 # --------------------------------------------------------------------------------------------------
 def get_adjacent_vertex_data(simplices: jnp.ndarray, num_vertices: int) -> jnp.ndarray:
+    """Preprocess mesh data for a vertex-centered evaluation.
+
+    Standard mesh tools provide vertex coordinates and the vertex indices for each simplex.
+    For the vertex-centered solution of the Eikonal equation, however, we need the adjacent
+    simplices/vertices for each vertex. This method performs the necessary transformation.
+
+    Args:
+        simplices (jnp.ndarray): Vertex indices for all simplices
+        num_vertices (int): Number of vertices in  the mesh
+
+    Returns:
+        jnp.ndarray: Array containing for each vertex the vertex and simplex indices of all
+            adjacent simplices. Dimension is (num_vertices, max_num_adjacent_simplices, 4),
+            where the 4 entries contain the index of an adjacent simplex and the associated
+            vertices. To ensure homogeneous arrays, all vertices have the same (maximum) number
+            of adjacent simplices. Non-existing simplices are buffered with the value -1.
+    """
     simplices = np.array(simplices)
     max_num_adjacent_simplices = np.max(np.bincount(simplices.flatten()))
     adjacent_vertex_inds = -1 * np.ones((num_vertices, max_num_adjacent_simplices, 4), dtype=int)
