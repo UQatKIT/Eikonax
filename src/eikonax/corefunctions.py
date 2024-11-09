@@ -80,7 +80,7 @@ def compute_softmin(args: jnp.ndarray, min_arg: int, order: int) -> float:
 def compute_softminmax(value: float, order: int) -> float:
     """Smooth double ReLU-type approximation that restricts a variable to the interval [0, 1].
 
-    The method is numerically stable, obeys the value range, and doe not introduce any new extrema.
+    The method is numerically stable, obeys the value range, and does not introduce any new extrema.
 
     Args:
         value (float): variable to restrict to range [0,1]
@@ -89,8 +89,10 @@ def compute_softminmax(value: float, order: int) -> float:
     Returns:
         float: Smoothed/restricted value
     """
+    lower_bound =  1- jnp.log(1 + jnp.exp(order)) / order
     soft_value = jnp.log(1 + jnp.exp(order * value)) / order
     soft_value = 1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order
+    soft_value = (soft_value - lower_bound) / (1 - lower_bound)
     return soft_value
 
 
