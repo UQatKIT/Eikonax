@@ -1,3 +1,5 @@
+"""_summary_."""
+
 import time
 
 import chex
@@ -11,9 +13,24 @@ from . import corefunctions, logging
 # ==================================================================================================
 @chex.dataclass
 class SolverData:
+    """Settings for the initialization of the Eikonax Solver.
+
+    Args:
+        loop_type: Type of loop for iterations,
+            options are 'jitted_for', 'jitted_while','nonjitted_while'.
+        max_value: Maximum value for the initialization of the solution vector.
+        softminmax_order: Order of the soft minmax [0,1] approximation for optimization parameters.
+        softminmax_cutoff: Cutoff distance from [0,1] for the soft minmax function.
+        max_num_iterations: Maximum number of iterations after which to terminate the solver.
+            Required for all loop types
+        tolerance: Absolute difference between iterates in supremum norm, after which to terminate
+            solver. Required for while loop types
+        log_interval: Iteration interval after which log info is written. Required for non-jitted
+            while loop type.
+    """
+
     loop_type: str
     max_value: float
-    softmin_order: int
     softminmax_order: int
     softminmax_cutoff: float
     max_num_iterations: int
@@ -23,6 +40,14 @@ class SolverData:
 
 @chex.dataclass
 class Solution:
+    """Eikonax solution object, returned by the solver.
+
+    Args:
+        values: Actual solution vector.
+        num_iterations: Number of iterations performed in the solve.
+        tolerance: Tolerance from last two iterates.
+    """
+
     values: jnp.ndarray
     num_iterations: int
     tolerance: float | jnp.ndarray | None = None
@@ -30,11 +55,26 @@ class Solution:
 
 # ==================================================================================================
 class Solver(eqx.Module):
+    """Eikonax solver class.
+
+    The solver class is the main component for computing the solution of the Eikonal equation for
+    given geometry, tensor field, and initial sites. THe Eikonax solver works on the vertex level,
+    meaning that it considers updates from all adjacent triangles to a vertex, instead of all
+    updates for all vertices per triangle. This allows to establish causality in the final solution,
+    which is important for the efficient computation of parametric derivatives.
+    The solver class is mainly a wrapper around different loop constructs, which call vectorized
+    forms of the methods implemented in the `corefunctions` module. These loop constructs evolve
+    around the loop functionality provided by JAX. Furthermore, the solver class is based on the
+    equinox Module class, which allows for usage of OOP features cohersian between data and methods.
+
+    Methods:
+        run: Main interface for Eikonax runs.
+    """
+
     _vertices: jnp.ndarray
     _adjacency_data: jnp.ndarray
     _loop_type: str
     _max_value: float
-    _softmin_order: int
     _softminmax_order: int
     _softminmax_cutoff: float
     _max_num_iterations: int
@@ -50,7 +90,31 @@ class Solver(eqx.Module):
         solver_data: SolverData,
         initial_sites: corefunctions.InitialSites,
         logger: logging.Logger | None = None,
-    ):
+    ) -> None:
+        """Constructor of the solver class.
+
+        The constructor initializes all data structures that are re-used in many-query scenarios,
+        sucha s the solution of inverse problems. It further conducts some data validation on the
+        input provided by the user.
+
+        Args:
+            mesh_data (corefunctions.MeshData): Vertex-based mesh data.
+            solver_data (SolverData): Settings for the solver.
+            initial_sites (corefunctions.InitialSites): vertices and values for source points
+            logger (logging.Logger | None, optional): Logger object, only required for non-jitted
+                while loops. Defaults to None.
+
+        Raises:
+            ValueError: Checks that the maximum value for initialization of the solution vector
+                is positive.
+            ValueError: Checks that the maximum number of iterations is positive.
+            ValueError: Checks that the soft minmax cutoff is positive.
+            ValueError: Checks that the soft minmax order is positive.
+            ValueError: Checks that the softmin order is positive.
+            ValueError: Checks that the prescribed tolerance is positive, if it is provided.
+            ValueError: Checks that the log interval is positive, if it is provided.
+            ValueError: Checks that the provided mesh data is consistent.
+        """
         if solver_data.max_value <= 0:
             raise ValueError(f"Max value needs to be positive, but is {solver_data.max_value}")
         if solver_data.max_num_iterations <= 0:
@@ -65,10 +129,6 @@ class Solver(eqx.Module):
         if solver_data.softminmax_order <= 0:
             raise ValueError(
                 f"Softminmax order needs to be positive, but is {solver_data.softminmax_order}"
-            )
-        if solver_data.softmin_order <= 0:
-            raise ValueError(
-                f"Softmin order needs to be positive, but is {solver_data.softmin_order}"
             )
         if solver_data.tolerance is not None and solver_data.tolerance <= 0:
             raise ValueError(f"Tolerance needs to be positive, but is {solver_data.tolerance}")
@@ -86,7 +146,6 @@ class Solver(eqx.Module):
         self._adjacency_data = mesh_data.adjacency_data
         self._loop_type = solver_data.loop_type
         self._max_value = solver_data.max_value
-        self._softmin_order = solver_data.softmin_order
         self._softminmax_order = solver_data.softminmax_order
         self._softminmax_cutoff = solver_data.softminmax_cutoff
         self._max_num_iterations = solver_data.max_num_iterations
@@ -100,6 +159,21 @@ class Solver(eqx.Module):
         self,
         tensor_field: jnp.ndarray,
     ) -> Solution:
+        """Main interface for cunducting solver runs.
+
+        The method initializes the solution vector and dispatches to the run method for the
+        selected loop type.
+
+        Args:
+            tensor_field (jnp.ndarray): Parameter field for which to solve the Eikonal equation.
+                Provides an anisotropy tensor for each simplex of the mesh.
+
+        Raises:
+            ValueError: Checks that the chosen loop type is valid.
+
+        Returns:
+            Solution: Eikonax solution object.
+        """
         initial_guess = jnp.ones(self._vertices.shape[0]) * self._max_value
         initial_guess = initial_guess.at[self._initial_sites.inds].set(self._initial_sites.values)
 
@@ -130,6 +204,20 @@ class Solver(eqx.Module):
         initial_guess: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> tuple[jnp.ndarray, int, float]:
+        """Solver run with jitted for loop for iterations.
+
+        The method constructs a JAX-type for loop with fixed number of iterations. For every
+        iteration, a new solution vector is computed from the `_compute_global_update` method.
+
+        Args:
+            initial_guess (jnp.ndarray): Initial solution vector
+            tensor_field (jnp.ndarray): Parameter field
+
+        Returns:
+            tuple[jnp.ndarray, int, float]: Solution values, number of iterations, tolerance
+        """
+
+        # JAX body for for loop, has to carry over all args
         def loop_body_for(_: int, carry_args: tuple) -> tuple:
             new_solution_vector, tolerance, old_solution_vector, tensor_field = carry_args
             old_solution_vector = new_solution_vector
@@ -159,9 +247,26 @@ class Solver(eqx.Module):
         initial_guess: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> tuple[jnp.ndarray, int, float]:
+        """Solver run with jitted while loop for iterations.
+
+        The iterator is tolerance-based, terminating after a user-defined tolerance for the
+        difference between two consecutive iterates in supremum norm is undercut. For every
+        iteration, a new solution vector is computed from the `_compute_global_update` method
+
+        Args:
+            initial_guess (jnp.ndarray): Initial solution vector
+            tensor_field (jnp.ndarray): Parameter field
+
+        Raises:
+            ValueError: Checks that tolerance has been provided by the user
+
+        Returns:
+            tuple[jnp.ndarray, int, float]: Solution values, number of iterations, tolerance
+        """
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
 
+        # JAX body for while loop, has to carry over all args
         def loop_body_while(carry_args: tuple) -> tuple:
             new_solution_vector, iteration_counter, tolerance, old_solution_vector, tensor_field = (
                 carry_args
@@ -178,6 +283,7 @@ class Solver(eqx.Module):
                 tensor_field,
             )
 
+        # JAX termination condition for while loop
         def cond_while(carry_args: tuple) -> bool:
             new_solution_vector, iteration_counter, tolerance, old_solution_vector, _ = carry_args
             tolerance = jnp.max(jnp.abs(new_solution_vector - old_solution_vector))
@@ -205,6 +311,26 @@ class Solver(eqx.Module):
         initial_guess: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> tuple[jnp.ndarray, int, jnp.ndarray]:
+        """Solver run with standard Python while loop for iterations.
+
+        While being less performant, the Python while loop allows for logging of infos between
+        iterations. The iterator is tolerance-based, terminating after a user-defined tolerance for
+        the difference between two consecutive iterates in supremum norm is undercut. For every
+        iteration, a new solution vector is computed from the `_compute_global_update` method
+
+        Args:
+            initial_guess (jnp.ndarray): Initial solution vector
+            tensor_field (jnp.ndarray): Parameter field
+
+        Raises:
+            ValueError: Checks that tolerance has been provided by the user
+            ValueError: Checks that log interval has been provided by the user
+            ValueError: Checks that logger object has been provided by the user
+
+        Returns:
+            tuple[jnp.ndarray, int, jnp.ndarray]: Solution values, number of iterations, tolerance
+                vector over all iterations
+        """
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
         if self._log_interval is None:
@@ -251,6 +377,18 @@ class Solver(eqx.Module):
         solution_vector: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> jnp.ndarray:
+        """Given a current state and tensor field, compute a new solution vector.
+
+        This method is basically a vectorized call to the `_compute_vertex_update` method, evaluated
+        over all vertices of the mesh.
+
+        Args:
+            solution_vector (jnp.ndarray): Current state
+            tensor_field (jnp.ndarray): Parameter field
+
+        Returns:
+            jnp.ndarray: New iterate
+        """
         assert solution_vector.shape[0] == self._vertices.shape[0], (
             f"Solution vector needs to have shape {self._vertices.shape[0]}, "
             f"but has shape {solution_vector.shape}"
@@ -261,7 +399,6 @@ class Solver(eqx.Module):
             tensor_field,
             self._adjacency_data,
         )
-
         assert global_update.shape == solution_vector.shape, (
             f"New solution has shape {global_update.shape}, "
             f"but should have shape {solution_vector.shape}"
@@ -275,6 +412,20 @@ class Solver(eqx.Module):
         tensor_field: jnp.ndarray,
         adjacency_data: jnp.ndarray,
     ) -> float:
+        """Compute the update value for a single vertex.
+
+        This method links to the main logic of the solver routine, based on functions in the
+        `corefunctions` module.
+
+        Args:
+            old_solution_vector (jnp.ndarray): Current state
+            tensor_field (jnp.ndarray): Parameter field
+            adjacency_data (jnp.ndarray): Info on all adjacent triangles and respective vertices
+                for the current vertex
+
+        Returns:
+            float: Optimal update value for the current vertex
+        """
         vertex_update_candidates = corefunctions.compute_vertex_update_candidates(
             old_solution_vector,
             tensor_field,
@@ -287,14 +438,7 @@ class Solver(eqx.Module):
         vertex_update_candidates = jnp.concatenate(
             (self_update, vertex_update_candidates.flatten())
         )
-
-        min_value = jnp.min(vertex_update_candidates)
-        vertex_update_candidates = jnp.where(
-            vertex_update_candidates == min_value, vertex_update_candidates, jnp.inf
-        )
-        vertex_update = corefunctions.compute_softmin(
-            vertex_update_candidates, min_value, self._softmin_order
-        )
+        vertex_update = jnp.min(vertex_update_candidates)
         assert (
             vertex_update.shape == ()
         ), f"Vertex update has to be scalar, but has shape {vertex_update.shape}"

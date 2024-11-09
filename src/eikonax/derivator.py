@@ -1,3 +1,5 @@
+"""_summary_."""
+
 import chex
 import equinox as eqx
 import jax
@@ -10,6 +12,17 @@ from . import corefunctions
 
 @chex.dataclass
 class PartialDerivatorData:
+    """Settings for initialization of partial derivator.
+
+    Attributes:
+        softmin_order: Order of the softmin function applied to update candidates with
+            identical, minimal arrival times.
+        softminmax_order: Order of the the soft minmax function for differentiable transformation
+            of the update parameters
+        softminmax_cutoff: Cut-off in for minmax transformation, beyond which zero sensitivity
+            is assumed.
+    """
+
     softmin_order: int
     softminmax_order: int
     softminmax_cutoff: int
@@ -17,6 +30,14 @@ class PartialDerivatorData:
 
 # ==================================================================================================
 class PartialDerivator(eqx.Module):
+    """Component for computing partial derivatives of the Godunov Update operator.
+
+    Methods:
+        compute_partial_derivatives: Compute the partial derivatives of the Godunov update operator
+            with respect to the solution vector and the parameter tensor field, given a state for
+            both variables
+    """
+
     _vertices: jnp.ndarray
     _adjacency_data: jnp.ndarray
     _initial_sites: corefunctions.InitialSites
@@ -30,7 +51,15 @@ class PartialDerivator(eqx.Module):
         mesh_data: corefunctions.MeshData,
         derivator_data: PartialDerivatorData,
         initial_sites: corefunctions.InitialSites,
-    ):
+    ) -> None:
+        """Constructor for the partial derivator object.
+
+        Args:
+            mesh_data (corefunctions.MeshData): Mesh data object also utilized for the Eikonax
+                solver, contains adjacency data for every vertex.
+            derivator_data (PartialDerivatorData): Settings for initialization of the derivator.
+            initial_sites (corefunctions.InitialSites): Locations and values at source points
+        """
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._initial_sites = initial_sites
@@ -44,6 +73,28 @@ class PartialDerivator(eqx.Module):
         solution_vector: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """Compute the partial derivatives of the Godunov update operator.
+
+        This method provided the main interface for computing the partial derivatives of the global
+        Eikonax update operator with respect to the solution vector and the parameter tensor field.
+        The updates are computed locally for each vertex, such that the resulting data structures
+        are sparse. Subsequently, further zero entries are removed to reduce the memory footprint.
+        The derivatives computed in this component can be utilized to compute the total parametric
+        derivative via a fix point equation, given that the provided solution vector is that
+        fix point.
+        The computation of partial derivatives is possible with a single pass over the mesh, since
+        the solution of the Eikonax equation, and therefore causality within the Godunov update
+        scheme, is known.
+
+        Args:
+            solution_vector (jnp.ndarray): Current solution
+            tensor_field (jnp.ndarray): Parameter field
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Partial derivatives with respect to
+                the solution vector and the parameter tensor field. Both quantities are given as
+                arrays over all local contributions, making them sparse in the global context.
+        """
         partial_derivative_solution, partial_derivative_parameter = (
             self._compute_global_partial_derivatives(
                 solution_vector,
@@ -56,7 +107,6 @@ class PartialDerivator(eqx.Module):
         sparse_partial_parameter = self._compress_partial_derivative_parameter(
             partial_derivative_parameter
         )
-
         return sparse_partial_solution, sparse_partial_parameter
 
     # ----------------------------------------------------------------------------------------------
@@ -64,6 +114,23 @@ class PartialDerivator(eqx.Module):
         self,
         partial_derivative_solution: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """Compress the partial derivative data with respect to the solution vector.
+
+        Compression consists of two steps:
+        1. Remove zero entries in the sensitivity vector
+        2. Set the sensitivity vector to zero at the initial sites, but keep them for later
+           computations.
+
+        Args:
+            partial_derivative_solution (jnp.ndarray): Raw data from partial derivative computation,
+                with shape (N, num_adjacent_simplices, 2), N depends on the number of identical
+                update paths for the vertices in the mesh.
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Compressed data, represented as rows,
+            columns and values for initialization in sparse matrix. Shape depends on number
+                of non-zero entries
+        """
         current_inds = self._adjacency_data[:, 0, 0]
         adjacent_inds = self._adjacency_data[:, :, 1:3]
 
@@ -73,22 +140,32 @@ class PartialDerivator(eqx.Module):
         values_compressed = partial_derivative_solution[nonzero_mask]
 
         initial_site_mask = jnp.where(rows_compressed != self._initial_sites.inds)
-        rows_compressed = rows_compressed[initial_site_mask]
-        columns_compressed = columns_compressed[initial_site_mask]
-        values_compressed = values_compressed[initial_site_mask]
-
-        rows_compressed = jnp.concatenate((self._initial_sites.inds, rows_compressed))
-        columns_compressed = jnp.concatenate((self._initial_sites.inds, columns_compressed))
-        values_compressed = jnp.concatenate(
-            (jnp.zeros(self._initial_sites.inds.shape), values_compressed)
+        values_compressed = values_compressed.at[initial_site_mask].set(
+            jnp.zeros(self._initial_sites.inds.shape)
         )
-
         return rows_compressed, columns_compressed, values_compressed
 
     # ----------------------------------------------------------------------------------------------
     def _compress_partial_derivative_parameter(
         self, partial_derivative_parameter: jnp.ndarray
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """Compress the partial derivative data with respect to the parameter field.
+
+        Compression consists of two steps:
+        1. Remove tensor components from the sensitivity data, if all entries are zero
+        2. Set the sensitivity vector to zero at the initial sites, but keep them for later
+           computations.
+
+        Args:
+            partial_derivative_parameter (jnp.ndarray): Raw data from partial derivative computation,
+                with shape (N, num_adjacent_simplices, dim, dim), N depends on the number of
+                identical update paths for the vertices in the mesh.
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Compressed data, represented as rows,
+                columns and values to be further processes for sparse matrix assembly.
+                Shape depends on number of non-zero entries
+        """
         vertex_inds = self._adjacency_data[:, 0, 0]
         simplex_inds = self._adjacency_data[:, :, 3]
         tensor_dim = partial_derivative_parameter.shape[2]
@@ -100,14 +177,8 @@ class PartialDerivator(eqx.Module):
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
         initial_site_mask = jnp.where(rows_compressed != self._initial_sites.inds)
-        rows_compressed = rows_compressed[initial_site_mask]
-        columns_compressed = simplices_compressed[initial_site_mask]
-        values_compressed = values_compressed[initial_site_mask]
-
-        rows_compressed = jnp.concatenate((self._initial_sites.inds, rows_compressed))
-        columns_compressed = jnp.concatenate((self._initial_sites.inds, columns_compressed))
-        values_compressed = jnp.concatenate(
-            (jnp.zeros((self._initial_sites.inds.size, tensor_dim, tensor_dim)), values_compressed)
+        values_compressed = values_compressed.at[initial_site_mask].set(
+            jnp.zeros((initial_site_mask[0].size, tensor_dim, tensor_dim))
         )
 
         return rows_compressed, simplices_compressed, values_compressed
@@ -119,6 +190,20 @@ class PartialDerivator(eqx.Module):
         solution_vector: jnp.ndarray,
         tensor_field: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Compute partial derivatives of the global update operator.
+
+        The method is a jitted and vectorized call to the `_compute_vertex_partial_derivative`
+        method.
+
+        Args:
+            solution_vector (jnp.ndarray): Global solution vector
+            tensor_field (jnp.ndarray): Global parameter tensor field
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray]: Raw data for partial derivatives, with shape
+                (N, num_adjacent_simplices, dim, dim), N depends on the number of
+                identical update paths for the vertices in the mesh.
+        """
         assert solution_vector.shape[0] == self._vertices.shape[0], (
             f"Solution vector needs to have shape {self._vertices.shape[0]}, "
             f"but has shape {solution_vector.shape}"
@@ -157,6 +242,23 @@ class PartialDerivator(eqx.Module):
         tensor_field: jnp.ndarray,
         adjacency_data: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Compute partial derivatives for the update of a single vertex.
+
+        The method computes candidates for all respective subterms through calls to further methods.
+        These candidates are filtered for feyasibility by means of JAX filters.
+        The sofmin function (and its gradient) is applied to the directions of all optimal
+        updates to ensure differentiability, other contributions are discarded.
+        Lasty, the evaluated contributions are combined according to the form of the
+        "total differential" for the parrtial derivatives.
+
+        Args:
+            solution_vector (jnp.ndarray): Global solution vector
+            tensor_field (jnp.ndarray): Global parameter tensor field
+            adjacency_data (jnp.ndarray): Adjacency data for the vertex under consideration
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray]: Partial derivatives for the given vertex
+        """
         max_num_adjacent_simplices = adjacency_data.shape[0]
         tensor_dim = tensor_field.shape[1]
         assert adjacency_data.shape == (max_num_adjacent_simplices, 4), (
@@ -207,6 +309,19 @@ class PartialDerivator(eqx.Module):
         tensor_field: jnp.ndarray,
         adjacency_data: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Compute partial derivatives corresponding to potential update candidates for a vertex.
+
+        Update candidates and corresponding derivatives are computed for all adjacent simplices,
+        and for all possible update parameters per simplex.
+
+        Args:
+            solution_vector (jnp.ndarray): Global solution vector
+            tensor_field (jnp.ndarray): Global parameter field
+            adjacency_data (jnp.ndarray): Adjacency data for the given vertex
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray]: Candidates for partial derivatives
+        """
         max_num_adjacent_simplices = adjacency_data.shape[0]
         tensor_dim = tensor_field.shape[1]
         grad_update_solution_candidates = jnp.zeros((max_num_adjacent_simplices, 4, 2))
@@ -236,6 +351,20 @@ class PartialDerivator(eqx.Module):
         tensor_field: jnp.ndarray,
         adjacency_data: jnp.ndarray,
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Compute partial derivatives for all update candidates within an adjacent simplex.
+
+        The update candidates are evaluated according to the different candidates for the
+        optimization parameters lambda. Contributions are combined to the form of the involved
+        total differentials.
+
+        Args:
+            solution_vector (jnp.ndarray): Global solution vector
+            tensor_field (jnp.ndarray): Flobal parameter field
+            adjacency_data (jnp.ndarray): Adjacency data for the given vertex and simplex
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray]: Derivative candidate from the given simplex
+        """
         assert (
             len(adjacency_data) == 4
         ), f"Indices need to have length 4, but have length {len(adjacency_data)}"
@@ -245,7 +374,11 @@ class PartialDerivator(eqx.Module):
         edges = corefunctions.compute_edges(i, j, k, self._vertices)
         parameter_tensor = tensor_field[s]
         lambda_array = corefunctions.compute_optimal_update_parameters(
-            solution_values, parameter_tensor, edges, self._softminmax_order, self._softminmax_cutoff
+            solution_values,
+            parameter_tensor,
+            edges,
+            self._softminmax_order,
+            self._softminmax_cutoff,
         )
         lambda_partial_solution, lambda_partial_parameter = self._compute_lambda_grad(
             solution_values, parameter_tensor, edges
@@ -281,7 +414,24 @@ class PartialDerivator(eqx.Module):
         vertex_update_candidates: jnp.ndarray,
         grad_update_solution_candidates: jnp.ndarray,
         grad_update_parameter_candidates: jnp.ndarray,
-    ):
+    ) -> tuple[float, jnp.ndarray, jnp.ndarray]:
+        """Mask irrelevant derivative candidates so that they are discarded later.
+
+        Values are masked by setting them to zero or infinity, depending on the routine in which
+        they are utilized later. Partial derivatives are only relevant if the corresponding update
+        corresponds to an optimal path.
+
+        Args:
+            vertex_update_candidates (jnp.ndarray): Update candidates for a given vertex
+            grad_update_solution_candidates (jnp.ndarray): Partial derivative candidates w.r.t. the
+                solution vector
+            grad_update_parameter_candidates (jnp.ndarray): Partial derivative candidates w.r.t. the
+                parameter field
+
+        Returns:
+            tuple[float, jnp.ndarray, jnp.ndarray]: Optimal update values, masked partial
+                derivatives
+        """
         min_value = jnp.min(vertex_update_candidates)
         min_candidate_mask = jnp.where(vertex_update_candidates == min_value, 1, 0)
         vertex_update_candidates = jnp.where(
@@ -303,6 +453,21 @@ class PartialDerivator(eqx.Module):
         parameter_tensor: jnp.ndarray,
         edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
     ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        """Compute the partial derivatives of update parameters for a single vertex.
+
+        This method evaluates the partial derivatives of the update parameters with respect to the
+        current solution vector and the given parameter field, for a single triangle.
+
+        Args:
+            solution_values (jnp.ndarray): Current solution values at the opposite vertices of the
+                considered triangle
+            parameter_tensor (jnp.ndarray): Parameter tensor for the given triangle
+            edges (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): Edges of the considered triangle
+
+        Returns:
+            tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Jacobians of the update parameters w.r.t.
+                the solution vector and the parameter tensor
+        """
         lambda_partial_solution = corefunctions.jac_lambda_solution(
             solution_values,
             parameter_tensor,
@@ -323,12 +488,20 @@ class PartialDerivator(eqx.Module):
 
 # ==================================================================================================
 class DerivativeSolver:
+    """_summary_."""
+
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
         solution: jnp.ndarray,
         sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
     ) -> None:
+        """_summary_.
+
+        Args:
+            solution (jnp.ndarray): _description_
+            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): _description_
+        """
         num_points = solution.size
         self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
         self._sparse_system_matrix = self._assemble_system_matrix(
@@ -337,6 +510,14 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     def solve(self, right_hand_side: np.ndarray | jnp.ndarray) -> np.ndarray:
+        """_summary_.
+
+        Args:
+            right_hand_side (np.ndarray | jnp.ndarray): _description_
+
+        Returns:
+            np.ndarray: _description_
+        """
         permutated_right_hand_side = self._sparse_permutation_matrix @ right_hand_side
         permutated_solution = sp.sparse.linalg.spsolve_triangular(
             self._sparse_system_matrix, permutated_right_hand_side, lower=False, unit_diagonal=True
@@ -347,6 +528,14 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     def _assemble_permutation_matrix(self, solution: jnp.ndarray) -> sp.sparse.csc_matrix:
+        """_summary_.
+
+        Args:
+            solution (jnp.ndarray): _description_
+
+        Returns:
+            sp.sparse.csc_matrix: _description_
+        """
         num_points = solution.size
         permutation_row_inds = jnp.arange(solution.size)
         permutation_col_inds = jnp.argsort(solution)
@@ -364,6 +553,15 @@ class DerivativeSolver:
         sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
         num_points: int,
     ) -> sp.sparse.csc_matrix:
+        """_summary_.
+
+        Args:
+            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): _description_
+            num_points (int): _description_
+
+        Returns:
+            sp.sparse.csc_matrix: _description_
+        """
         rows_compressed, columns_compressed, values_compressed = sparse_partial_update_solution
         sparse_partial_matrix = sp.sparse.csc_matrix(
             (values_compressed, (rows_compressed, columns_compressed)),
