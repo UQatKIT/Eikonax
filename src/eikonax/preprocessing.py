@@ -20,7 +20,7 @@ def create_test_mesh(
     Raises:
         ValueError: Checks that mesh bounds have correct dimension
         ValueError: Checks that mesh bounds are provided correctly
-        ValueError: Checks that at leas two mesh points are chosen
+        ValueError: Checks that at least two mesh points are chosen
 
     Returns:
         tuple[np.ndarray, np.ndarray]: Array of vertex coordinates and array of simplex indices

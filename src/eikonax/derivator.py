@@ -488,7 +488,27 @@ class PartialDerivator(eqx.Module):
 
 # ==================================================================================================
 class DerivativeSolver:
-    """_summary_."""
+    """Main component for obtaining gradients from partial derivatives.
+
+    The Eikonax derivator computes partial derivatives of the global update operator with respect
+    to the solution vector and the parameter tensor field. At the fixed point of the iterative
+    update scheme, meaning the correct solution according to the discrete upwind scheme, these
+    parrial derivatives can be used to obtain the total Jacobian of the global update operator
+    with respect to the parameter tensor field. In practice, we are typically concerned with the
+    parametric gradient of a cost functional that comprises the solution vector. The partial
+    differential equation, which connects solution vector and parameter field, acts as a constraint
+    in this context. The partial derivator computes the the so-called adjoint variable in this
+    context, by solving a linear system of equation. The system matrix is obtained from the
+    partial derivative of the global update operator with respect to the solution vector.
+    Importantly, we can order the indices of the solution vector according to the size of the
+    respective solution values. Because the update operator obeys upwind causality, the system
+    matrix becomes triangular under such a permutation, and we can solve the linear system through
+    simple back-substitution. In the context of an optimization problem, the right-hand-side is
+    given as the partial derivative of the cost functional with respect to the solution vector.
+
+    Methods:
+        solve: Solve the linear system for the adjoint variable
+    """
 
     # ----------------------------------------------------------------------------------------------
     def __init__(
@@ -496,11 +516,17 @@ class DerivativeSolver:
         solution: jnp.ndarray,
         sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
     ) -> None:
-        """_summary_.
+        """Constructor for the derivative solver.
+
+        Initializes the causality-inspired permutation matrix, and afterwards the permuted system
+        matrix, which is triangular.
 
         Args:
-            solution (jnp.ndarray): _description_
-            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): _description_
+            solution (jnp.ndarray): Obtained solution of the Eikonal equation
+            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): Sparse
+                representation of the partial derivative G_u, containing row inds, column inds and
+                values. These structures might contain redundances, which are automatically removed
+                through summation in the sparse matrix assembly later.
         """
         num_points = solution.size
         self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
@@ -510,13 +536,19 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     def solve(self, right_hand_side: np.ndarray | jnp.ndarray) -> np.ndarray:
-        """_summary_.
+        """Solve the linear system for the parametric gradient.
+
+        The right-hand-siide needs to be given as the partial derivative of the prescribed cost
+        functional w.r.t. the solution vector. This right-hand-side is permutated according to the
+        causality of the solution. Subsequently, the linear system can be solved through (sparse)
+        back-substitution. The solution is then permutated back to the original ordering.
 
         Args:
-            right_hand_side (np.ndarray | jnp.ndarray): _description_
+            right_hand_side (np.ndarray | jnp.ndarray): RHS for the linear system solve
 
         Returns:
-            np.ndarray: _description_
+            np.ndarray: Solution of the linear system solve, corresponding to the adjoint in an
+                optimization context.
         """
         permutated_right_hand_side = self._sparse_permutation_matrix @ right_hand_side
         permutated_solution = sp.sparse.linalg.spsolve_triangular(
@@ -528,13 +560,19 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     def _assemble_permutation_matrix(self, solution: jnp.ndarray) -> sp.sparse.csc_matrix:
-        """_summary_.
+        """Construct permutation matrix for index ordering.
+
+        From a given solution vector, we know from the properties of the upwind update scheme
+        that causaility is given through the size of the respective solution values. This means
+        that nodes with higher solution values are only influenced by nodes with lower solution
+        values. With respect to linear system solves involving the global update operator,
+        this means that we can obtain triangular matrices through an according permutation.
 
         Args:
-            solution (jnp.ndarray): _description_
+            solution (jnp.ndarray): Obtained solution of the eikonal equation
 
         Returns:
-            sp.sparse.csc_matrix: _description_
+            sp.sparse.csc_matrix: Sparse permutation matrix
         """
         num_points = solution.size
         permutation_row_inds = jnp.arange(solution.size)
@@ -553,14 +591,22 @@ class DerivativeSolver:
         sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
         num_points: int,
     ) -> sp.sparse.csc_matrix:
-        """_summary_.
+        """Assemble system matrix for gradient solver.
+
+        The parametric gradient of the global update operator is obtained from a linear system
+        solve, where the system matrix is given as (I-G_u)^T, where G_u is the partial derivative of
+        the global update operator with respect to the solution vector. According to the
+        causality of the solution, we can permutate the system matrix to a triangular form.
 
         Args:
-            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]): _description_
-            num_points (int): _description_
+            sparse_partial_update_solution (tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]):
+                Sparse representation of the partial derivative G_u, containing row inds, column
+                inds and values. These structures might contain redundances, which are
+                automatically removed through summation in the sparse matrix assembly.
+            num_points (int): Number of mesh points
 
         Returns:
-            sp.sparse.csc_matrix: _description_
+            sp.sparse.csc_matrix: Sparse representation of the permuted system matrix
         """
         rows_compressed, columns_compressed, values_compressed = sparse_partial_update_solution
         sparse_partial_matrix = sp.sparse.csc_matrix(
@@ -571,7 +617,7 @@ class DerivativeSolver:
         sparse_system_matrix = sparse_identity_matrix - sparse_partial_matrix
         sparse_system_matrix = (
             self._sparse_permutation_matrix
-            @ sparse_system_matrix
+            @ sparse_system_matrix.T
             @ self._sparse_permutation_matrix.T
         )
 
