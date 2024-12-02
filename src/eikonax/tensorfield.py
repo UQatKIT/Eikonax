@@ -69,7 +69,9 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     `SimplexTensor` components assemble the tensor field for a given simplex and a set of parameters
     for that simplex. The relevant parameters are provided by the `VectorToSimplicesMap` component
-    from the global parameter vector.
+    from the global parameter vector. Note that this class provides the metric tensor as used in the
+    inner product for the update stencil of the eikonal equation. This is the INVERSE of the
+    conductivity tensor, which is the actual tensor field in the eikonal equation.
 
     Methods:
         assemble: Assemble the tensor field for a given simplex and parameters
@@ -148,14 +150,13 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         Returns:
             jnp.ndarray: Tensor for the simplex
         """
-        tensor = parameters * jnp.identity(self._dimension)
+        tensor = 1 / parameters * jnp.identity(self._dimension)
         return tensor
 
-    def derivative(self, _simplex_ind: int, _parameters: float) -> jnp.ndarray:
-        """Parametric derivative of the `assemble` method..
+    def derivative(self, _simplex_ind: int, parameters: float) -> jnp.ndarray:
+        """Parametric derivative of the `assemble` method.
 
-        In this case, this is simply the identity. The method needs to be broadcastable over
-        `simplex_ind` by JAX (with vmap).
+        The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
             _simplex_ind (int): Index of simplex under consideration (not used)
@@ -164,7 +165,9 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         Returns:
             jnp.ndarray: Jacobian tensor for the simplex under consideration
         """
-        derivative = jnp.expand_dims(jnp.identity(self._dimension), axis=-1)
+        derivative = (
+            -1 / jnp.square(parameters) * jnp.expand_dims(jnp.identity(self._dimension), axis=-1)
+        )
         return derivative
 
 
@@ -244,7 +247,7 @@ class TensorField:
         derivative_solution_tensor: tuple[jnp.array, jnp.array, jnp.array],
         parameter_vector: jnp.ndarray,
     ) -> jnp.array:
-        """Assemble total parametric derivative of the Eikonax solution vector w.r.t. parameters.
+        """Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
 
         The total derivative of the solution vector w.r.t. the global parameter vector is given by
         the chain rule of differentiation. The Eikonax Derivator component evaluates the derivative
