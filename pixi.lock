@@ -347,6 +347,8 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.1-h4ab18f5_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312hef9b889_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.6-ha6fb4c9_0.conda
+      - pypi: https://files.pythonhosted.org/packages/9a/ef/44af6aded89444dc45f4466ff207a05d3376c641cf1146c03fd14c55ae64/Cython-3.0.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+      - pypi: https://files.pythonhosted.org/packages/a2/bc/fd9c2808fe9b80c73b3c6ef62e0eb2fc2d57482f8a4bc9686fec2ef25c66/fim_python-1.2.2.tar.gz
       - pypi: .
 packages:
 - kind: conda
@@ -933,6 +935,12 @@ packages:
   - pkg:pypi/cycler?source=hash-mapping
   size: 13458
   timestamp: 1696677888423
+- kind: pypi
+  name: cython
+  version: 3.0.11
+  url: https://files.pythonhosted.org/packages/9a/ef/44af6aded89444dc45f4466ff207a05d3376c641cf1146c03fd14c55ae64/Cython-3.0.11-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+  sha256: 8b14c24f1dc4c4c9d997cca8d1b7fb01187a218aab932328247dcf5694a10102
+  requires_python: '>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*'
 - kind: conda
   name: dbus
   version: 1.13.6
@@ -1026,7 +1034,9 @@ packages:
   name: eikonax
   version: 0.1.0
   path: .
-  sha256: 669acd04b6c613b2f37185e2364a9e98d4a7932448e491cf6a1467fb4abbb994
+  sha256: b576a59adc081c13b61b96d80c47c6c77c08033f3437aaa3480d133c2daeac73
+  requires_dist:
+  - fim-python>=1.2.2,<2 ; extra == 'development'
   requires_python: '>=3.12'
   editable: true
 - kind: conda
@@ -1116,6 +1126,26 @@ packages:
   purls: []
   size: 137891
   timestamp: 1725568750673
+- kind: pypi
+  name: fim-python
+  version: 1.2.2
+  url: https://files.pythonhosted.org/packages/a2/bc/fd9c2808fe9b80c73b3c6ef62e0eb2fc2d57482f8a4bc9686fec2ef25c66/fim_python-1.2.2.tar.gz
+  sha256: 97a57af449030313d86cf8c2661141d57cd4b35c5442ae695d0a7032b2d5da62
+  requires_dist:
+  - numpy
+  - cython>=0.29.22
+  - sphinx ; extra == 'docs'
+  - pydata-sphinx-theme ; extra == 'docs'
+  - pandas ; extra == 'docs'
+  - ipython ; extra == 'docs'
+  - cupy>=9.0 ; extra == 'gpu'
+  - scipy ; extra == 'tests'
+  - pytest ; extra == 'tests'
+  - pytest-cov ; extra == 'tests'
+  - matplotlib ; extra == 'tests'
+  - pandas ; extra == 'tests'
+  - ipython ; extra == 'tests'
+  requires_python: '>=3.6'
 - kind: conda
   name: font-ttf-dejavu-sans-mono
   version: '2.37'
