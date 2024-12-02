@@ -7,7 +7,10 @@ from scipy.spatial import Delaunay
 
 # ==================================================================================================
 def create_test_mesh(
-    mesh_bounds: tuple[float, float], num_points: int
+    mesh_bounds_x: tuple[float, float],
+    mesh_bounds_y: tuple[float, float],
+    num_points_x: int,
+    num_points_y: int,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Create a simple test mesh with Scipy's Delauny functionality.
 
@@ -25,18 +28,22 @@ def create_test_mesh(
     Returns:
         tuple[np.ndarray, np.ndarray]: Array of vertex coordinates and array of simplex indices
     """
-    if len(mesh_bounds) != 2:
-        raise ValueError(f"Mesh bounds must be a tuple with two elements, not {len(mesh_bounds)}")
-    if mesh_bounds[0] >= mesh_bounds[1]:
-        raise ValueError(
-            f"Lower domain bound ({mesh_bounds[0]}) must be less than upper bound ({mesh_bounds[1]})"
-        )
-    if num_points < 2:
-        raise ValueError(f"Number of mesh points must be at least 2, not {num_points}")
-    mesh_points_x = np.linspace(*mesh_bounds, num_points)
-    mesh_points_y = np.linspace(*mesh_bounds, num_points)
+    for mesh_bounds in (mesh_bounds_x, mesh_bounds_y):
+        if len(mesh_bounds) != 2:
+            raise ValueError(
+                f"Mesh bounds must be a tuple with two elements, not {len(mesh_bounds)}"
+            )
+        if mesh_bounds[0] >= mesh_bounds[1]:
+            raise ValueError(
+                f"Lower domain bound ({mesh_bounds[0]}) must be less than upper bound ({mesh_bounds[1]})"
+            )
+    for num_points in (num_points_x, num_points_y):
+        if num_points < 2:
+            raise ValueError(f"Number of mesh points must be at least 2, not {num_points}")
+    mesh_points_x = np.linspace(*mesh_bounds, num_points_x)
+    mesh_points_y = np.linspace(*mesh_bounds, num_points_y)
     mesh_points = np.column_stack(
-        (np.repeat(mesh_points_x, num_points), np.tile(mesh_points_y, num_points))
+        (np.repeat(mesh_points_x, num_points_x), np.tile(mesh_points_y, num_points_y))
     )
     triangulation = Delaunay(mesh_points)
     nodes = jnp.array(triangulation.points)
