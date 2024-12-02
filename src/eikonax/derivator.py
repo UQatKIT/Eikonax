@@ -139,7 +139,7 @@ class PartialDerivator(eqx.Module):
         columns_compressed = adjacent_inds[nonzero_mask]
         values_compressed = partial_derivative_solution[nonzero_mask]
 
-        initial_site_mask = jnp.where(rows_compressed != self._initial_sites.inds)
+        initial_site_mask = jnp.where(rows_compressed == self._initial_sites.inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
             jnp.zeros(self._initial_sites.inds.shape)
         )
@@ -176,7 +176,7 @@ class PartialDerivator(eqx.Module):
         simplices_compressed = simplex_inds[nonzero_mask]
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
-        initial_site_mask = jnp.where(rows_compressed != self._initial_sites.inds)
+        initial_site_mask = jnp.where(rows_compressed == self._initial_sites.inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
             jnp.zeros((initial_site_mask[0].size, tensor_dim, tensor_dim))
         )
@@ -271,6 +271,7 @@ class PartialDerivator(eqx.Module):
             tensor_field,
             adjacency_data,
             self._vertices,
+            True,
             self._softminmax_order,
             self._softminmax_cutoff,
         )
@@ -373,7 +374,7 @@ class PartialDerivator(eqx.Module):
         solution_values = jnp.array((solution_vector[j], solution_vector[k]))
         edges = corefunctions.compute_edges(i, j, k, self._vertices)
         parameter_tensor = tensor_field[s]
-        lambda_array = corefunctions.compute_optimal_update_parameters(
+        lambda_array = corefunctions.compute_optimal_update_parameters_soft(
             solution_values,
             parameter_tensor,
             edges,
@@ -468,14 +469,14 @@ class PartialDerivator(eqx.Module):
             tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Jacobians of the update parameters w.r.t.
                 the solution vector and the parameter tensor
         """
-        lambda_partial_solution = corefunctions.jac_lambda_solution(
+        lambda_partial_solution = corefunctions.jac_lambda_soft_solution(
             solution_values,
             parameter_tensor,
             edges,
             self._softminmax_order,
             self._softminmax_cutoff,
         )
-        lambda_partial_parameter = corefunctions.jac_lambda_parameter(
+        lambda_partial_parameter = corefunctions.jac_lambda_soft_parameter(
             solution_values,
             parameter_tensor,
             edges,
@@ -621,4 +622,4 @@ class DerivativeSolver:
             @ self._sparse_permutation_matrix.T
         )
 
-        return sparse_system_matrix.T
+        return sparse_system_matrix
