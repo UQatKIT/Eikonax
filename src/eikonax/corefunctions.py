@@ -26,6 +26,7 @@ class MeshData:
             homogeneous data structures. If a vertex has fewer than max_num_adjacent_simplices
             adjacent simplices, the remaining entries are filled with -1.
     """
+
     vertices: jnp.ndarray
     adjacency_data: jnp.ndarray
 
@@ -34,7 +35,7 @@ class MeshData:
 class InitialSites:
     """Initial site info.
 
-    For a unique solution of the state-constrained Eikonal equation, the solution values need to be 
+    For a unique solution of the state-constrained Eikonal equation, the solution values need to be
     given a number of initial points (at least one). Multiple initial sites need to be compatible,
     in the sense that the arrival time from another source is not smaller than the initial value
     itself.
@@ -43,6 +44,7 @@ class InitialSites:
         inds: The indices of the nodes where the initial sites are placed..
         values: The values of the initial sites.
     """
+
     inds: jnp.ndarray
     values: jnp.ndarray
 
@@ -89,9 +91,17 @@ def compute_softminmax(value: float, order: int) -> float:
     Returns:
         float: Smoothed/restricted value
     """
-    lower_bound =  1- jnp.log(1 + jnp.exp(order)) / order
-    soft_value = jnp.log(1 + jnp.exp(order * value)) / order
-    soft_value = 1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order
+    lower_bound = -jnp.log(1 + jnp.exp(-order)) / order
+    soft_value = jnp.where(
+        value <= 0,
+        jnp.log(1 + jnp.exp(order * value)) / order,
+        value + jnp.log(1 + jnp.exp(-order * value)) / order,
+    )
+    soft_value = jnp.where(
+        soft_value <= 1,
+        soft_value - jnp.log(1 + jnp.exp(order * (soft_value - 1))) / order,
+        1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order,
+    )
     soft_value = (soft_value - lower_bound) / (1 - lower_bound)
     return soft_value
 
@@ -120,7 +130,7 @@ def compute_edges(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_optimal_update_parameters(
+def compute_optimal_update_parameters_soft(
     solution_values: jnp.ndarray,
     parameter_tensor: jnp.ndarray,
     edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
@@ -182,6 +192,29 @@ def compute_optimal_update_parameters(
 
 
 # --------------------------------------------------------------------------------------------------
+def compute_optimal_update_parameters_hard(
+    solution_values: jnp.ndarray,
+    parameter_tensor: jnp.ndarray,
+    edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+) -> jnp.ndarray:
+    assert solution_values.shape == (
+        2,
+    ), f"Solution values need to have shape (2,), but have {solution_values.shape}"
+    assert (len(edge.shape) == 1 for edge in edges), "Edges need to be 1D arrays"
+
+    lambda_1, lambda_2 = _compute_optimal_update_parameters(
+        solution_values, parameter_tensor, edges
+    )
+    lambda_1_clipped = jnp.where((lambda_1 < 0) | (lambda_1 > 1), -1, lambda_1)
+    lambda_2_clipped = jnp.where((lambda_2 < 0) | (lambda_2 > 1), -1, lambda_2)
+    lambda_array = jnp.array((0, 1, lambda_1_clipped, lambda_2_clipped))
+    assert lambda_array.shape == (
+        4,
+    ), f"Lambda array needs to have shape (2,), but has shape {lambda_array.shape}"
+    return lambda_array
+
+
+# --------------------------------------------------------------------------------------------------
 def _compute_optimal_update_parameters(
     solution_values: jnp.ndarray,
     parameter_tensor: jnp.ndarray,
@@ -195,20 +228,20 @@ def _compute_optimal_update_parameters(
     further processed in the calling wrapper.
     """
     u_j, u_k = solution_values
-    _, e_ki, e_jk = edges
+    e_ji, _, e_jk = edges
     delta_u = u_k - u_j
     a_1 = jnp.dot(e_jk, parameter_tensor @ e_jk)
-    a_2 = jnp.dot(e_jk, parameter_tensor @ e_ki)
-    a_3 = jnp.dot(e_ki, parameter_tensor @ e_ki)
+    a_2 = jnp.dot(e_jk, parameter_tensor @ e_ji)
+    a_3 = jnp.dot(e_ji, parameter_tensor @ e_ji)
 
     nominator = a_1 * a_3 - a_2**2
     denominator = a_1 - delta_u**2
     # Treat imaginary roots as inf
-    sqrt_term = jnp.where(denominator > 0, nominator / denominator, jnp.inf)
+    sqrt_term = jnp.where(denominator > 0, jnp.sqrt(nominator / denominator), jnp.inf)
     c = delta_u * sqrt_term
 
-    lambda_1 = (-a_2 + c) / a_1
-    lambda_2 = (-a_2 - c) / a_1
+    lambda_1 = (a_2 + c) / a_1
+    lambda_2 = (a_2 - c) / a_1
     return lambda_1, lambda_2
 
 
@@ -253,6 +286,7 @@ def compute_update_candidates_from_adjacent_simplex(
     tensor_field: jnp.ndarray,
     adjacency_data: jnp.ndarray,
     vertices: jnp.ndarray,
+    use_soft_update: bool,
     softminmax_order: int,
     softminmax_cutoff: float,
 ) -> tuple[jnp.ndarray, jnp.ndarray]:
@@ -285,9 +319,14 @@ def compute_update_candidates_from_adjacent_simplex(
     solution_values = jnp.array((old_solution_vector[j], old_solution_vector[k]))
     edges = compute_edges(i, j, k, vertices)
     parameter_tensor = tensor_field[s]
-    lambda_array = compute_optimal_update_parameters(
-        solution_values, parameter_tensor, edges, softminmax_order, softminmax_cutoff
-    )
+    if use_soft_update:
+        lambda_array = compute_optimal_update_parameters_soft(
+            solution_values, parameter_tensor, edges, softminmax_order, softminmax_cutoff
+        )
+    else:
+        lambda_array = compute_optimal_update_parameters_hard(
+            solution_values, parameter_tensor, edges
+        )
     update_candidates = jnp.zeros(4)
 
     for i, lambda_candidate in enumerate(lambda_array):
@@ -305,6 +344,7 @@ def compute_vertex_update_candidates(
     tensor_field: jnp.ndarray,
     adjacency_data: jnp.ndarray,
     vertices: jnp.ndarray,
+    use_soft_update: bool,
     softminmax_order: int,
     softminmax_cutoff: int,
 ) -> jnp.ndarray:
@@ -343,6 +383,7 @@ def compute_vertex_update_candidates(
                 tensor_field,
                 indices,
                 vertices,
+                use_soft_update,
                 softminmax_order,
                 softminmax_cutoff,
             )
@@ -372,14 +413,16 @@ grad_update_parameter = jax.grad(compute_fixed_update, argnums=1)
 # Derivative of update value function w.r.t. update parameter, 1x1
 grad_update_lambda = jax.grad(compute_fixed_update, argnums=2)
 # Derivative of update parameter function w.r.t. current solution values, 2x2
-jac_lambda_solution = jax.jacobian(compute_optimal_update_parameters, argnums=0)
+jac_lambda_soft_solution = jax.jacobian(compute_optimal_update_parameters_soft, argnums=0)
 # Derivative of update parameter function w.r.t. parameter tensor, 2xDxD
-jac_lambda_parameter = jax.jacobian(compute_optimal_update_parameters, argnums=1)
+jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft, argnums=1)
 
 # --------------------------------------------------------------------------------------------------
 _grad_softmin = jax.grad(compute_softmin, argnums=0)
+
+
 def grad_softmin(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
     """The gradient of the softmin function requires further masking of infeasible values."""
-    raw_grad = _grad_softmin(args, min_arg, order)
-    softmin_grad = jnp.where(args < jnp.inf, raw_grad, 0)
+    num_min_args = jnp.count_nonzero(args == min_arg)
+    softmin_grad = jnp.where(args == min_arg, 1 / num_min_args, 0)
     return softmin_grad
