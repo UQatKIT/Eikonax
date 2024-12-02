@@ -31,6 +31,7 @@ class SolverData:
 
     loop_type: str
     max_value: float
+    use_soft_update: bool
     softminmax_order: int
     softminmax_cutoff: float
     max_num_iterations: int
@@ -75,6 +76,7 @@ class Solver(eqx.Module):
     _adjacency_data: jnp.ndarray
     _loop_type: str
     _max_value: float
+    _use_soft_update: bool
     _softminmax_order: int
     _softminmax_cutoff: float
     _max_num_iterations: int
@@ -122,11 +124,11 @@ class Solver(eqx.Module):
                 f"Max number of iterations needs to be positive, "
                 f"but is {solver_data.max_num_iterations}"
             )
-        if solver_data.softminmax_cutoff <= 0:
+        if solver_data.use_soft_update and solver_data.softminmax_cutoff <= 0:
             raise ValueError(
                 f"Softminmax cutoff needs to be positive, but is {solver_data.softminmax_cutoff}"
             )
-        if solver_data.softminmax_order <= 0:
+        if solver_data.use_soft_update and solver_data.softminmax_order <= 0:
             raise ValueError(
                 f"Softminmax order needs to be positive, but is {solver_data.softminmax_order}"
             )
@@ -146,6 +148,7 @@ class Solver(eqx.Module):
         self._adjacency_data = mesh_data.adjacency_data
         self._loop_type = solver_data.loop_type
         self._max_value = solver_data.max_value
+        self._use_soft_update = solver_data.use_soft_update
         self._softminmax_order = solver_data.softminmax_order
         self._softminmax_cutoff = solver_data.softminmax_cutoff
         self._max_num_iterations = solver_data.max_num_iterations
@@ -431,6 +434,7 @@ class Solver(eqx.Module):
             tensor_field,
             adjacency_data,
             self._vertices,
+            self._use_soft_update,
             self._softminmax_order,
             self._softminmax_cutoff,
         )
