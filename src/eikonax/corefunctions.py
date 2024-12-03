@@ -173,14 +173,14 @@ def compute_optimal_update_parameters_soft(
     )
     lambda_1_clipped = compute_softminmax(lambda_1, softminmax_order)
     lambda_2_clipped = compute_softminmax(lambda_2, softminmax_order)
-    lower_bounds = -softminmax_cutoff
+    lower_bound = -softminmax_cutoff
     upper_bound = 1 + softminmax_cutoff
 
     lambda_1_clipped = jnp.where(
-        (lambda_1 < lower_bounds) | (lambda_1 > upper_bound), -1, lambda_1_clipped
+        (lambda_1 < lower_bound) | (lambda_1 > upper_bound), -1, lambda_1_clipped
     )
     lambda_2_clipped = jnp.where(
-        (lambda_2 < -lower_bounds) | (lambda_2 > upper_bound) | (lambda_2 == lambda_1),
+        (lambda_2 < lower_bound) | (lambda_2 > upper_bound) | (lambda_2 == lambda_1),
         -1,
         lambda_2_clipped,
     )
@@ -418,11 +418,11 @@ jac_lambda_soft_solution = jax.jacobian(compute_optimal_update_parameters_soft, 
 jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft, argnums=1)
 
 # --------------------------------------------------------------------------------------------------
-_grad_softmin = jax.grad(compute_softmin, argnums=0)
+def grad_softmin(args: jnp.ndarray, min_arg: int, _order: int) -> jnp.ndarray:
+    """The gradient of the softmin function requires further masking of infeasible values.
 
-
-def grad_softmin(args: jnp.ndarray, min_arg: int, order: int) -> jnp.ndarray:
-    """The gradient of the softmin function requires further masking of infeasible values."""
+    Note that this is only the gradient of the softmin function for identical, minimal values.
+    """
     num_min_args = jnp.count_nonzero(args == min_arg)
     softmin_grad = jnp.where(args == min_arg, 1 / num_min_args, 0)
     return softmin_grad
