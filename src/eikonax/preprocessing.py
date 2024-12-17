@@ -46,9 +46,9 @@ def create_test_mesh(
         (np.repeat(mesh_points_x, num_points_x), np.tile(mesh_points_y, num_points_y))
     )
     triangulation = Delaunay(mesh_points)
-    nodes = jnp.array(triangulation.points)
+    vertices = jnp.array(triangulation.points)
     simplices = jnp.array(triangulation.simplices)
-    return nodes, simplices
+    return vertices, simplices
 
 
 # --------------------------------------------------------------------------------------------------

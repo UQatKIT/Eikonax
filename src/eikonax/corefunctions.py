@@ -205,8 +205,12 @@ def compute_optimal_update_parameters_hard(
     lambda_1, lambda_2 = _compute_optimal_update_parameters(
         solution_values, parameter_tensor, edges
     )
-    lambda_1_clipped = jnp.where((lambda_1 < 0) | (lambda_1 > 1), -1, lambda_1)
-    lambda_2_clipped = jnp.where((lambda_2 < 0) | (lambda_2 > 1), -1, lambda_2)
+    lambda_1_clipped = jnp.where((lambda_1 <= 0) | (lambda_1 >= 1), -1, lambda_1)
+    lambda_2_clipped = jnp.where(
+        (lambda_2 <= 0) | (lambda_2 >= 1) | (lambda_2 == lambda_1),
+        -1,
+        lambda_2,
+    )
     lambda_array = jnp.array((0, 1, lambda_1_clipped, lambda_2_clipped))
     assert lambda_array.shape == (
         4,
@@ -400,7 +404,7 @@ def compute_vertex_update_candidates(
         vertex_update_candidates,
         jnp.inf,
     )
-
+    print(vertex_update_candidates)
     return vertex_update_candidates
 
 
@@ -421,7 +425,7 @@ jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft,
 def grad_softmin(args: jnp.ndarray, min_arg: int, _order: int) -> jnp.ndarray:
     """The gradient of the softmin function requires further masking of infeasible values.
 
-    Note that this is only the gradient of the softmin function for identical, minimal values.
+    NOTE: this is only the gradient of the softmin function for identical, minimal values!
     """
     num_min_args = jnp.count_nonzero(args == min_arg)
     softmin_grad = jnp.where(args == min_arg, 1 / num_min_args, 0)
