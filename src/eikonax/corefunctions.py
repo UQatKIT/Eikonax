@@ -420,6 +420,7 @@ jac_lambda_soft_solution = jax.jacobian(compute_optimal_update_parameters_soft, 
 # Derivative of update parameter function w.r.t. parameter tensor, 2xDxD
 jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft, argnums=1)
 
+
 # --------------------------------------------------------------------------------------------------
 def grad_softmin(args: jnp.ndarray, min_arg: int, _order: int) -> jnp.ndarray:
     """The gradient of the softmin function requires further masking of infeasible values.

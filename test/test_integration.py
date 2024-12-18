@@ -24,6 +24,7 @@ def test_solver_run_2D_uniform_tensorfield(mesh_and_tensorfield_2D_uniform, eiko
     eikonax_solution = eikonax_solver.run(eikonax_tensor_field)
     assert np.allclose(fimpython_solution, np.array(eikonax_solution.values), atol=1e-4)
 
+
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_solver_run_2D_random_tensorfield(mesh_and_tensorfield_2D_random, eikonax_solver_data):
@@ -39,6 +40,7 @@ def test_solver_run_2D_random_tensorfield(mesh_and_tensorfield_2D_random, eikona
     eikonax_solver = solver.Solver(mesh_data, solver_data, initial_sites)
     eikonax_solution = eikonax_solver.run(eikonax_tensor_field)
     assert np.allclose(fimpython_solution, np.array(eikonax_solution.values), atol=1e-4)
+
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow

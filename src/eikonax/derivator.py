@@ -22,6 +22,7 @@ class PartialDerivatorData:
         softminmax_cutoff: Cut-off in for minmax transformation, beyond which zero sensitivity
             is assumed.
     """
+
     softmin_order: int
     softminmax_order: int
     softminmax_cutoff: int
@@ -36,6 +37,7 @@ class PartialDerivator(eqx.Module):
             with respect to the solution vector and the parameter tensor field, given a state for
             both variables
     """
+
     # Equinox modules are data classes, so we need to specify attributes on class level
     _vertices: jnp.ndarray
     _adjacency_data: jnp.ndarray
@@ -43,7 +45,6 @@ class PartialDerivator(eqx.Module):
     _softmin_order: int
     _softminmax_order: int
     _softminmax_cutoff: int
-
 
     # ----------------------------------------------------------------------------------------------
     def __init__(

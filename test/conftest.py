@@ -302,7 +302,9 @@ def mesh_and_tensorfield_2D_function(test_mesh_for_runs):
     vertices, simplices = test_mesh_for_runs
     simplex_centers = np.mean(vertices[simplices], axis=1)
     inv_speed_values = 1 / (
-        1 + 10 * np.exp(-50 * np.linalg.norm(simplex_centers - np.array([[0.65, 0.65]]), axis=-1) ** 2)
+        1
+        + 10
+        * np.exp(-50 * np.linalg.norm(simplex_centers - np.array([[0.65, 0.65]]), axis=-1) ** 2)
     )
     vertices, simplices = test_mesh_for_runs
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
@@ -324,4 +326,3 @@ def eikonax_solver_data(request):
         "log_interval": None,
     }
     return solver_data
-
