@@ -404,7 +404,6 @@ def compute_vertex_update_candidates(
         vertex_update_candidates,
         jnp.inf,
     )
-    print(vertex_update_candidates)
     return vertex_update_candidates
 
 

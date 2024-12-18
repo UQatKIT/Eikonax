@@ -1,11 +1,11 @@
 [project]
-authors = [{name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu"}]
+authors = [{ name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu" }]
 description = "Differentiable Solver for the Anisotropic Eikonal Equation on Triangulated Meshes"
 name = "eikonax"
 requires-python = ">= 3.12"
 version = "0.1.0"
 readme = "README.md"
-license = {text = "MIT License"}
+license = { text = "MIT License" }
 
 [build-system]
 build-backend = "hatchling.build"
@@ -52,10 +52,14 @@ pydocstyle.convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
-addopts = ["-v", "--import-mode=importlib", "--cov=eikonax"]
+addopts = [
+  "-v",
+  "--import-mode=importlib",
+  "--cov=eikonax",
+]
 markers = [
-            "unit: unit tests",
-            "integration: integration tests",
-            "compile: requires compilation",
-            "slow: slow tests"
-          ]
+  "unit: unit tests",
+  "integration: integration tests",
+  "compile: requires compilation",
+  "slow: tests with long runtime",
+]

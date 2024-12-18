@@ -93,6 +93,20 @@ def simplex_data_for_update():
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="session")
+def simplex_data_for_derivatives():
+    edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
+    parameter_tensor = jnp.identity(2)
+    solution_values = jnp.array([0.1, 0.7])
+    lambda_value = 0.4
+    simplex_data = solution_values, parameter_tensor, lambda_value, edges
+    grad_update_solution = jnp.array([0.6, 0.4])
+    grad_update_parameter = jnp.array([[0.2496151, 0.16641007], [0.16641006, 0.11094004]])
+    grad_update_lambda = jnp.array(0.32264987)
+    return simplex_data, grad_update_solution, grad_update_parameter, grad_update_lambda
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="session")
 def vertex_update_data(test_mesh_small, adjacency_data_for_test_mesh_small):
     vertices, simplices, _ = test_mesh_small
     adjacency_data = adjacency_data_for_test_mesh_small
