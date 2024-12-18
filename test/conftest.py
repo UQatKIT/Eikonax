@@ -1,9 +1,11 @@
 import jax.numpy as jnp
+import numpy as np
 import pytest
+from scipy.spatial import Delaunay
 
 
-# ==================================================================================================
-@pytest.fixture(scope="session")
+# ==================================== Fixtures for Unit Tests =====================================
+@pytest.fixture(scope="function")
 def test_mesh_small():
     meta_data = {
         "mesh_bounds_x": [0, 1],
@@ -36,7 +38,7 @@ def test_mesh_small():
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def adjacency_data_for_test_mesh_small():
     adjacency_data = jnp.array(
         [
@@ -56,7 +58,7 @@ def adjacency_data_for_test_mesh_small():
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def mock_simplex_data():
     edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
     parameter_tensor = jnp.identity(2)
@@ -66,12 +68,8 @@ def mock_simplex_data():
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(
-    scope="session",
-    params=[
-        (jnp.array([0.0, 0.0]), [0.5, 0.5]),
-        (jnp.array([0.0, 1.0]), [1.0, 0.0]),
-    ],
-    ids=["central", "border"],
+    scope="function",
+    params=[(jnp.array([0.0, 0.0]), [0.5, 0.5]), (jnp.array([0.0, 1.0]), [1.0, 0.0])],
 )
 def simplex_data_for_lambda(request):
     edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
@@ -81,7 +79,7 @@ def simplex_data_for_lambda(request):
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def simplex_data_for_update():
     edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
     parameter_tensor = jnp.identity(2)
@@ -92,7 +90,7 @@ def simplex_data_for_update():
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def simplex_data_for_derivatives():
     edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
     parameter_tensor = jnp.identity(2)
@@ -106,7 +104,7 @@ def simplex_data_for_derivatives():
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def vertex_update_data(test_mesh_small, adjacency_data_for_test_mesh_small):
     vertices, simplices, _ = test_mesh_small
     adjacency_data = adjacency_data_for_test_mesh_small
@@ -118,7 +116,7 @@ def vertex_update_data(test_mesh_small, adjacency_data_for_test_mesh_small):
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def vertex_update_without_softmin(vertex_update_data):
     use_soft_update = False
     solution_values = jnp.array(
@@ -188,7 +186,7 @@ def vertex_update_without_softmin(vertex_update_data):
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def vertex_update_with_softmin(vertex_update_data):
     use_soft_update = True
     solution_values = jnp.array(
@@ -255,3 +253,75 @@ def vertex_update_with_softmin(vertex_update_data):
     )
 
     return vertex_update_data, use_soft_update, solution_values, vertex_update_candidates
+
+
+# ================================= Fixtures for Integration Tests =================================
+@pytest.fixture(scope="module", params=[10, 100])
+def test_mesh_for_runs(request):
+    mesh_bounds_x = (0, 1)
+    mesh_bounds_y = (0, 1)
+    num_points_x = request.param
+    num_points_y = request.param
+
+    mesh_points_x = np.linspace(*mesh_bounds_x, num_points_x)
+    mesh_points_y = np.linspace(*mesh_bounds_y, num_points_y)
+    mesh_points = np.column_stack(
+        (np.repeat(mesh_points_x, num_points_x), np.tile(mesh_points_y, num_points_y))
+    )
+    triangulation = Delaunay(mesh_points)
+    vertices = triangulation.points
+    simplices = triangulation.simplices
+
+    return vertices, simplices
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def mesh_and_tensorfield_2D_uniform(test_mesh_for_runs):
+    vertices, simplices = test_mesh_for_runs
+    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    return vertices, simplices, tensor_field
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def mesh_and_tensorfield_2D_random(test_mesh_for_runs):
+    vertices, simplices = test_mesh_for_runs
+    num_simplices = simplices.shape[0]
+    rng = np.random.default_rng(seed=0)
+    inv_speed_values = rng.uniform(0.5, 1.5, num_simplices)
+    vertices, simplices = test_mesh_for_runs
+    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    tensor_field = np.einsum("i,ijk->ijk", inv_speed_values, tensor_field)
+    return vertices, simplices, tensor_field
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def mesh_and_tensorfield_2D_function(test_mesh_for_runs):
+    vertices, simplices = test_mesh_for_runs
+    simplex_centers = np.mean(vertices[simplices], axis=1)
+    inv_speed_values = 1 / (
+        1 + 10 * np.exp(-50 * np.linalg.norm(simplex_centers - np.array([[0.65, 0.65]]), axis=-1) ** 2)
+    )
+    vertices, simplices = test_mesh_for_runs
+    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    tensor_field = np.einsum("i,ijk->ijk", inv_speed_values, tensor_field)
+    return vertices, simplices, tensor_field
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module", params=[True, False])
+def eikonax_solver_data(request):
+    solver_data = {
+        "tolerance": 1e-8,
+        "max_num_iterations": 1000,
+        "loop_type": "jitted_while",
+        "max_value": 1000,
+        "use_soft_update": request.param,
+        "softminmax_order": 20,
+        "softminmax_cutoff": 1,
+        "log_interval": None,
+    }
+    return solver_data
+
