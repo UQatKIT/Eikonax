@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import numpy as np
 import pytest
 
 from eikonax import corefunctions, preprocessing
@@ -10,8 +11,8 @@ pytestmark = pytest.mark.unit
 def test_create_test_mesh(test_mesh_small):
     benchmark_vertices, benchmark_simplices, meta_data = test_mesh_small
     created_vertices, created_simplices = preprocessing.create_test_mesh(**meta_data)
-    assert jnp.allclose(benchmark_vertices, created_vertices)
-    assert jnp.allclose(benchmark_simplices, created_simplices)
+    assert np.allclose(benchmark_vertices, created_vertices)
+    assert np.allclose(benchmark_simplices, created_simplices)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -21,7 +22,7 @@ def test_get_adjacent_vertex_data(test_mesh_small, adjacency_data_for_test_mesh_
     adjacency_data = preprocessing.get_adjacent_vertex_data(
         benchmark_simplices, benchmark_vertices.shape[0]
     )
-    assert jnp.allclose(adjacency_data, adjacency_data_for_test_mesh_small)
+    assert np.allclose(adjacency_data, adjacency_data_for_test_mesh_small)
 
 
 # ================================== Unit Tests for Core Functions =================================

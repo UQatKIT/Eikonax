@@ -3,6 +3,8 @@ import numpy as np
 import pytest
 from scipy.spatial import Delaunay
 
+from eikonax import tensorfield
+
 
 # ==================================== Fixtures for Unit Tests =====================================
 @pytest.fixture(scope="function")
@@ -343,6 +345,25 @@ def mesh_and_tensorfield_2D_function(test_mesh_for_runs):
 
 
 # --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def small_mesh_and_tensorfield_2D_uniform_for_derivatives():
+    mesh_bounds_x = (0, 1)
+    mesh_bounds_y = (0, 1)
+    num_points_x = 3
+    num_points_y = 3
+    mesh_points_x = np.linspace(*mesh_bounds_x, num_points_x)
+    mesh_points_y = np.linspace(*mesh_bounds_y, num_points_y)
+    mesh_points = np.column_stack(
+        (np.repeat(mesh_points_x, num_points_x), np.tile(mesh_points_y, num_points_y))
+    )
+    triangulation = Delaunay(mesh_points)
+    vertices = triangulation.points
+    simplices = triangulation.simplices
+    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    return vertices, simplices, tensor_field
+
+
+# --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module", params=[True, False])
 def eikonax_solver_data(request):
     solver_data = {
@@ -356,3 +377,79 @@ def eikonax_solver_data(request):
         "log_interval": None,
     }
     return solver_data
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="function")
+def tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor():
+    dimension = 2
+    num_simplices = 3
+    parameter_vector = jnp.array((1, 2, 3), dtype=jnp.float32)
+    expected_tensor_field = jnp.array(
+        (
+            1 * jnp.identity(dimension),
+            1 / 2 * jnp.identity(dimension),
+            1 / 3 * jnp.identity(dimension),
+        ),
+        dtype=jnp.float32,
+    )
+    expected_field_derivative = -jnp.expand_dims(jnp.square(expected_tensor_field), axis=-1)
+    data = (
+        dimension,
+        num_simplices,
+        parameter_vector,
+        expected_tensor_field,
+        expected_field_derivative,
+    )
+    object_types = (tensorfield.LinearScalarMap, tensorfield.LinearScalarSimplexTensor)
+
+    return data, object_types
+
+
+# --------------------------------------------------------------------------------------------------
+@pytest.fixture(scope="module")
+def setup_derivative_tests(small_mesh_and_tensorfield_2D_uniform_for_derivatives):
+    derivator_data = {"softmin_order": 20, "softminmax_order": 20, "softminmax_cutoff": 1}
+    initial_sites = {"inds": (0,), "values": (0,)}
+    input_data = (
+        *small_mesh_and_tensorfield_2D_uniform_for_derivatives,
+        initial_sites,
+        derivator_data,
+    )
+    fwd_solution = jnp.array(
+        (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
+    )
+    expected_sparse_partial_solution = (
+        jnp.array([0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 7, 7, 8, 8], dtype=jnp.int32),
+        jnp.array([3, 1, 0, 1, 0, 1, 3, 1, 1, 3, 3, 3, 5, 7], dtype=jnp.int32),
+        jnp.array(
+            [0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5],
+            dtype=jnp.float32,
+        ),
+    )
+    expected_sparse_partial_tensor = (
+        jnp.array([0, 1, 2, 3, 4, 5, 5, 6, 7, 7, 8], dtype=jnp.int32),
+        jnp.array([1, 1, 3, 1, 0, 2, 3, 5, 4, 5, 7], dtype=jnp.int32),
+        jnp.array(
+            [
+                [[0.0, 0.0], [0.0, 0.0]],
+                [[0.0, 0.0], [0.0, 0.25]],
+                [[0.0, 0.0], [0.0, 0.25]],
+                [[0.25, 0.0], [0.0, 0.0]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+                [[0.25, 0.0], [0.0, 0.0]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
+            ],
+            dtype=jnp.float32,
+        ),
+    )
+    expected_partial_derivatives = (
+        expected_sparse_partial_solution,
+        expected_sparse_partial_tensor,
+    )
+
+    return input_data, fwd_solution, expected_partial_derivatives
