@@ -6,8 +6,8 @@ import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
-from jaxtyping import Array, Bool, Float, Int
+import numpy.typing as npt
+from jaxtyping import Bool, Float, Int
 
 from . import corefunctions, logging
 
@@ -51,9 +51,9 @@ class Solution:
         tolerance: Tolerance from last two iterates, or entire tolerance history
     """
 
-    values: Float[Array, "num_vertices"]
+    values: Float[jax.Array, "num_vertices"]
     num_iterations: int
-    tolerance: float | Float[Array, "num_iterations-1"] | None = None
+    tolerance: float | Float[jax.Array, "num_iterations-1"] | None = None
 
 
 # ==================================================================================================
@@ -75,8 +75,8 @@ class Solver(eqx.Module):
     """
 
     # Equinox modules are data classes, so specify attributes on class level
-    _vertices: Float[Array, "num_vertices dim"]
-    _adjacency_data: Int[Array, "num_vertices max_num_adjacent_simplices 4"]
+    _vertices: Float[jax.Array, "num_vertices dim"]
+    _adjacency_data: Int[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _loop_type: str
     _max_value: float
     _use_soft_update: bool
@@ -163,7 +163,7 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def run(
         self,
-        tensor_field: Float[Array | np.ndarray, "num_simplices dim dim"],
+        tensor_field: Float[jax.Array | npt.NDArray, "num_simplices dim dim"],
     ) -> Solution:
         """Main interface for cunducting solver runs.
 
@@ -208,9 +208,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _run_jitted_for_loop(
         self,
-        initial_guess: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_vertices dim dim"],
-    ) -> tuple[Float[Array, "num_vertices"], int, float]:
+        initial_guess: Float[jax.Array, "num_vertices"],
+        tensor_field: Float[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
         """Solver run with jitted for loop for iterations.
 
         The method constructs a JAX-type for loop with fixed number of iterations. For every
@@ -251,9 +251,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _run_jitted_while_loop(
         self,
-        initial_guess: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_vertices dim dim"],
-    ) -> tuple[Float[Array, "num_vertices"], int, float]:
+        initial_guess: Float[jax.Array, "num_vertices"],
+        tensor_field: Float[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
         """Solver run with jitted while loop for iterations.
 
         The iterator is tolerance-based, terminating after a user-defined tolerance for the
@@ -291,7 +291,7 @@ class Solver(eqx.Module):
             )
 
         # JAX termination condition for while loop
-        def cond_while(carry_args: tuple) -> Bool[jnp.ndarray, "..."]:
+        def cond_while(carry_args: tuple) -> Bool[jax.Array, ""]:
             new_solution_vector, iteration_counter, tolerance, old_solution_vector, _ = carry_args
             tolerance = jnp.max(jnp.abs(new_solution_vector - old_solution_vector))
             return (tolerance > self._tolerance) & (iteration_counter < self._max_num_iterations)
@@ -315,9 +315,9 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _run_nonjitted_while_loop(
         self,
-        initial_guess: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_vertices dim dim"],
-    ) -> tuple[Float[Array, "num_vertices"], int, float]:
+        initial_guess: Float[jax.Array, "num_vertices"],
+        tensor_field: Float[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
         """Solver run with standard Python while loop for iterations.
 
         While being less performant, the Python while loop allows for logging of infos between
@@ -381,9 +381,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _compute_global_update(
         self,
-        solution_vector: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_vertices dim dim"],
-    ) -> Float[Array, "num_vertices"]:
+        solution_vector: Float[jax.Array, "num_vertices"],
+        tensor_field: Float[jax.Array, "num_vertices dim dim"],
+    ) -> Float[jax.Array, "num_vertices"]:
         """Given a current state and tensor field, compute a new solution vector.
 
         This method is basically a vectorized call to the `_compute_vertex_update` method, evaluated
@@ -415,10 +415,10 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compute_vertex_update(
         self,
-        old_solution_vector: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_vertices dim dim"],
-        adjacency_data: Int[Array, "max_num_adjacent_simplices 4"],
-    ) -> Float[Array, ""]:
+        old_solution_vector: Float[jax.Array, "num_vertices"],
+        tensor_field: Float[jax.Array, "num_vertices dim dim"],
+        adjacency_data: Int[jax.Array, "max_num_adjacent_simplices 4"],
+    ) -> Float[jax.Array, ""]:
         """Compute the update value for a single vertex.
 
         This method links to the main logic of the solver routine, based on functions in the

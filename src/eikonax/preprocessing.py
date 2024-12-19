@@ -3,6 +3,7 @@
 from collections.abc import Iterable
 
 import numpy as np
+import numpy.typing as npt
 from jaxtyping import Float, Int
 from scipy.spatial import Delaunay
 
@@ -13,7 +14,7 @@ def create_test_mesh(
     mesh_bounds_y: Iterable[float, float],
     num_points_x: int,
     num_points_y: int,
-) -> tuple[Float[np.ndarray, "num_vertices dim"], Int[np.ndarray, "num_simplices 3"]]:
+) -> tuple[Float[npt.NDArray, "num_vertices dim"], Int[npt.NDArray, "num_simplices 3"]]:
     """Create a simple test mesh with Scipy's Delauny functionality.
 
     This methods creates a imple square mesh with Delauny triangulation.
@@ -53,8 +54,8 @@ def create_test_mesh(
 
 # --------------------------------------------------------------------------------------------------
 def get_adjacent_vertex_data(
-    simplices: Int[np.ndarray, "num_simplices 3"], num_vertices: int
-) -> Int[np.ndarray, "num_vertices max_num_adjacent_simplices 4"]:
+    simplices: Int[npt.NDArray, "num_simplices 3"], num_vertices: int
+) -> Int[npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]:
     """Preprocess mesh data for a vertex-centered evaluation.
 
     Standard mesh tools provide vertex coordinates and the vertex indices for each simplex.

@@ -5,9 +5,10 @@ from abc import ABC, abstractmethod
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
+import numpy.typing as npt
 import scipy as sp
-from jaxtyping import Array, Float, Int, Real
+from jaxtyping import Float, Int
+from jaxtyping import Real as jtReal
 
 
 # ==================================================================================================
@@ -24,8 +25,8 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
     # ----------------------------------------------------------------------------------------------
     @abstractmethod
     def map(
-        self, simplex_ind: Int[Array, ""], parameters: Real[Array, "num_parameters"]
-    ) -> Real[Array, "..."]:
+        self, simplex_ind: Int[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters"]
+    ) -> jtReal[jax.Array, "..."]:
         """Interface for vector-so-simplex mapping.
 
         For the given `simplex_ind`, return those parameters from the global parameter vector that
@@ -56,8 +57,8 @@ class LinearScalarMap(BaseVectorToSimplicesMap):
 
     # ----------------------------------------------------------------------------------------------
     def map(
-        self, simplex_ind: Int[Array, ""], parameters: Real[Array, "num_parameters_local"]
-    ) -> Real[Array, ""]:
+        self, simplex_ind: Int[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters_local"]
+    ) -> jtReal[jax.Array, ""]:
         """Return relevant parameters for a given simplex.
 
         Args:
@@ -96,8 +97,8 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     @abstractmethod
     def assemble(
-        self, simplex_ind: Int[Array, ""], parameters: Float[Array, "num_parameters_local"]
-    ) -> Float[Array, "dim dim"]:
+        self, simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, "num_parameters_local"]
+    ) -> Float[jax.Array, "dim dim"]:
         """Assemble the tensor field for given simplex and parameters.
 
         Given a parameter array of size n_local, the methods returns a tensor of size dim x dim.
@@ -118,8 +119,8 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     @abstractmethod
     def derivative(
-        self, simplex_ind: Int[Array, ""], parameters: Float[Array, "num_parameters_local"]
-    ) -> Float[Array, "dim dim num_parameters_local"]:
+        self, simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, "num_parameters_local"]
+    ) -> Float[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 
         Given a parameter array of size n_local, the methods returns a Jacobian tensor of size
@@ -152,8 +153,8 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
     """
 
     def assemble(
-        self, _simplex_ind: Int[Array, ""], parameters: Float[Array, ""]
-    ) -> Float[Array, "dim dim"]:
+        self, _simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, ""]
+    ) -> Float[jax.Array, "dim dim"]:
         """Assemble tensor for given simplex as parameter*Identity.
 
         the `parameters` argument is a scalar here, and `_simplex_ind` is not used. The method needs
@@ -170,8 +171,8 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         return tensor
 
     def derivative(
-        self, _simplex_ind: Int[Array, ""], parameters: Float[Array, ""]
-    ) -> Float[Array, "dim dim num_parameters_local"]:
+        self, _simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, ""]
+    ) -> Float[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 
         The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
@@ -213,7 +214,7 @@ class TensorField(eqx.Module):
 
     # Equinox modules are data classes, so we have to define attributes at the class level
     _num_simplices: int
-    _simplex_inds: Float[Array, "num_simplices"]
+    _simplex_inds: Float[jax.Array, "num_simplices"]
     _vector_to_simplices_map: BaseVectorToSimplicesMap
     _simplex_tensor: BaseSimplexTensor
 
@@ -243,8 +244,8 @@ class TensorField(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
     def assemble_field(
-        self, parameter_vector: Float[Array | np.ndarray, "num_parameters_global"]
-    ) -> Float[Array, "num_simplex dim dim"]:
+        self, parameter_vector: Float[jax.Array | npt.NDArray, "num_parameters_global"]
+    ) -> Float[jax.Array, "num_simplex dim dim"]:
         """Assemble global tensor field from global parameter vector.
 
         This method simply chains calls to the vector-to-simplices map and the simplex tensor
@@ -269,9 +270,9 @@ class TensorField(eqx.Module):
         self,
         number_of_vertices: int,
         derivative_solution_tensor: tuple[
-            Int[Array, "num_values"], Int[Array, "num_values"], Float[Array, "num_values dim dim"]
+            Int[jax.Array, "num_values"], Int[jax.Array, "num_values"], Float[jax.Array, "num_values dim dim"]
         ],
-        parameter_vector: Float[Array | np.ndarray, "num_parameters_global"],
+        parameter_vector: Float[jax.Array | npt.NDArray, "num_parameters_global"],
     ) -> sp.sparse.coo_matrix:
         """Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
 
@@ -325,10 +326,10 @@ class TensorField(eqx.Module):
     @eqx.filter_jit
     def _assemble_jacobian(
         self,
-        simplex_inds: Float[Array, "num_values"],
-        derivative_solution_tensor_values: Float[Array, "num_values"],
-        parameter_vector: Float[Array, "num_parameters_global"],
-    ) -> tuple[Float[Array, "..."], Int[Array, "..."]]:
+        simplex_inds: Float[jax.Array, "num_values"],
+        derivative_solution_tensor_values: Float[jax.Array, "num_values"],
+        parameter_vector: Float[jax.Array, "num_parameters_global"],
+    ) -> tuple[Float[jax.Array, "..."], Int[jax.Array, "..."]]:
         """Compute the partial derivative of the the tensor field w.r.t. to global parameter vector.
 
         Simplex-level derivatives are computed for all provided `simplex_inds' to match the

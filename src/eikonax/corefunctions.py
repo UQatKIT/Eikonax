@@ -10,9 +10,9 @@ from numbers import Real
 import chex
 import jax
 import jax.numpy as jnp
-import numpy as np
-from jaxtyping import Array, Float, Int
-from jaxtyping import Real as jaxReal
+import numpy.typing as npt
+from jaxtyping import Float, Int
+from jaxtyping import Real as jtReal
 
 
 # ==================================================================================================
@@ -33,8 +33,8 @@ class MeshData:
             adjacent simplices, the remaining entries are filled with -1.
     """
 
-    vertices: Float[Array | np.ndarray, "num_vertices dim"]
-    adjacency_data: Float[Array | np.ndarray, "num_vertices max_num_adjacent_simplices 4"]
+    vertices: Float[jax.Array | npt.NDArray, "num_vertices dim"]
+    adjacency_data: Float[jax.Array | npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]
 
     def __post_init__(self) -> None:
         self.vertices = jnp.array(self.vertices, dtype=jnp.float32)
@@ -55,8 +55,8 @@ class InitialSites:
         values: The values of the initial sites.
     """
 
-    inds: Float[Array | np.ndarray, "num_initial_sites"] | Iterable
-    values: Float[Array | np.ndarray, "num_initial_sites"] | Iterable
+    inds: Float[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
+    values: Float[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
 
     def __post_init__(self) -> None:
         self.inds = jnp.array(self.inds, dtype=jnp.int32)
@@ -65,8 +65,8 @@ class InitialSites:
 
 # ==================================================================================================
 def compute_softmin(
-    args: jaxReal[Array, "..."], min_arg: jaxReal[Array, ""], order: int
-) -> Float[Array, ""]:
+    args: jtReal[jax.Array, "..."], min_arg: jtReal[jax.Array, ""], order: int
+) -> Float[jax.Array, ""]:
     """Numerically stable computation of the softmin function based on the Boltzmann operator.
 
     This softmin function is applied to actual minimum values, meaning it does not have a purpose
@@ -92,7 +92,7 @@ def compute_softmin(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_softminmax(value: jaxReal[Array, "..."], order: int) -> Float[Array, "..."]:
+def compute_softminmax(value: jtReal[jax.Array, "..."], order: int) -> Float[jax.Array, "..."]:
     """Smooth double ReLU-type approximation that restricts a variable to the interval [0, 1].
 
     The method is numerically stable, obeys the value range, and does not introduce any new extrema.
@@ -121,18 +121,18 @@ def compute_softminmax(value: jaxReal[Array, "..."], order: int) -> Float[Array,
 
 # --------------------------------------------------------------------------------------------------
 def compute_edges(
-    i: Int[Array, ""],
-    j: Int[Array, ""],
-    k: Int[Array, ""],
-    vertices: Float[Array, "num_vertices dim"],
-) -> tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]]:
+    i: Int[jax.Array, ""],
+    j: Int[jax.Array, ""],
+    k: Int[jax.Array, ""],
+    vertices: Float[jax.Array, "num_vertices dim"],
+) -> tuple[Float[jax.Array, "dim"], Float[jax.Array, "dim"], Float[jax.Array, "dim"]]:
     """Compute the edged of a triangle from vertex indices and coordinates.
 
     Args:
         i (Int): First vertex index of a triangle
         j (Int): Second vertex index of a triangle
         k (Int): Third vertex index of a triangle
-        vertices (jnp.ndarray): Array of all vertex coordinates
+        vertices (jnp.ndarray): jax.Array of all vertex coordinates
 
     Returns:
         tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]: Triangle edge vectors
@@ -145,12 +145,12 @@ def compute_edges(
 
 # --------------------------------------------------------------------------------------------------
 def compute_optimal_update_parameters_soft(
-    solution_values: Float[Array, "2"],
-    parameter_tensor: Float[Array, "dim dim"],
-    edges: tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]],
+    solution_values: Float[jax.Array, "2"],
+    parameter_tensor: Float[jax.Array, "dim dim"],
+    edges: tuple[Float[jax.Array, "dim"], Float[jax.Array, "dim"], Float[jax.Array, "dim"]],
     softminmax_order: int,
     softminmax_cutoff: int,
-) -> Float[Array, "4"]:
+) -> Float[jax.Array, "4"]:
     """Compute position parameter for update of a node within a specific triangle.
 
     For a given vertex i and adjacent triangle, we compute the update for the solution of the
@@ -199,10 +199,10 @@ def compute_optimal_update_parameters_soft(
 
 # --------------------------------------------------------------------------------------------------
 def compute_optimal_update_parameters_hard(
-    solution_values: Float[Array, "2"],
-    parameter_tensor: Float[Array, "dim dim"],
-    edges: tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]],
-) -> Float[Array, "4"]:
+    solution_values: Float[jax.Array, "2"],
+    parameter_tensor: Float[jax.Array, "dim dim"],
+    edges: tuple[Float[jax.Array, "dim"], Float[jax.Array, "dim"], Float[jax.Array, "dim"]],
+) -> Float[jax.Array, "4"]:
     lambda_1, lambda_2 = _compute_optimal_update_parameters(
         solution_values, parameter_tensor, edges
     )
@@ -218,10 +218,10 @@ def compute_optimal_update_parameters_hard(
 
 # --------------------------------------------------------------------------------------------------
 def _compute_optimal_update_parameters(
-    solution_values: Float[Array, "2"],
-    parameter_tensor: Float[Array, "dim dim"],
-    edges: tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]],
-) -> tuple[Float[Array, ""], Float[Array, ""]]:
+    solution_values: Float[jax.Array, "2"],
+    parameter_tensor: Float[jax.Array, "dim dim"],
+    edges: tuple[Float[jax.Array, "dim"], Float[jax.Array, "dim"], Float[jax.Array, "dim"]],
+) -> tuple[Float[jax.Array, ""], Float[jax.Array, ""]]:
     """Compute the optimal update parameter for the solution of the Eikonal equation.
 
     The function works for the update within a given triangle. The solutions of the unconstrained
@@ -249,11 +249,11 @@ def _compute_optimal_update_parameters(
 
 # --------------------------------------------------------------------------------------------------
 def compute_fixed_update(
-    solution_values: Float[Array, "2"],
-    parameter_tensor: Float[Array, "dim dim"],
-    lambda_value: Float[Array, ""],
-    edges: tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]],
-) -> Float[Array, ""]:
+    solution_values: Float[jax.Array, "2"],
+    parameter_tensor: Float[jax.Array, "dim dim"],
+    lambda_value: Float[jax.Array, ""],
+    edges: tuple[Float[jax.Array, "dim"], Float[jax.Array, "dim"], Float[jax.Array, "dim"]],
+) -> Float[jax.Array, ""]:
     """Compute update for a given vertex, triangle, and update parameter.
 
     The update value is given by the solution at a point  on the edge between the opposite vertices,
@@ -280,14 +280,14 @@ def compute_fixed_update(
 
 # --------------------------------------------------------------------------------------------------
 def compute_update_candidates_from_adjacent_simplex(
-    old_solution_vector: Float[Array, "num_vertices"],
-    tensor_field: Float[Array, "num_simplices dim dim"],
-    adjacency_data: Int[Array, "max_num_adjacent_simplices"],
-    vertices: Float[Array, "num_vertices dim"],
+    old_solution_vector: Float[jax.Array, "num_vertices"],
+    tensor_field: Float[jax.Array, "num_simplices dim dim"],
+    adjacency_data: Int[jax.Array, "max_num_adjacent_simplices"],
+    vertices: Float[jax.Array, "num_vertices dim"],
     use_soft_update: bool,
     softminmax_order: int,
     softminmax_cutoff: Real,
-) -> tuple[Float[Array, "4"], Float[Array, "4"]]:
+) -> tuple[Float[jax.Array, "4"], Float[jax.Array, "4"]]:
     """Compute all possible update candidates from an adjacent triangle.
 
     Given a vertex and an adjacent triangle, this method computes all optimal update parameter
@@ -298,9 +298,9 @@ def compute_update_candidates_from_adjacent_simplex(
 
     Args:
         old_solution_vector (jnp.ndarray): Given solution vector, as per a previous iteration
-        tensor_field (jnp.ndarray): Array of all tensor fields
+        tensor_field (jnp.ndarray): jax.Array of all tensor fields
         adjacency_data (jnp.ndarray): Index of one adjaccent triangle and corresponding vertices
-        vertices (jnp.ndarray): Array of all vertex coordinates
+        vertices (jnp.ndarray): jax.Array of all vertex coordinates
         softminmax_order (Int): Order of the soft minmax function for the update parameter, see
             `compute_softminmax`
         softminmax_cutoff (Float): Cutoff value for the soft minmax computation, see
@@ -332,14 +332,14 @@ def compute_update_candidates_from_adjacent_simplex(
 
 # --------------------------------------------------------------------------------------------------
 def compute_vertex_update_candidates(
-    old_solution_vector: Float[Array, "num_vertices"],
-    tensor_field: Float[Array, "num_simplices dim dim"],
-    adjacency_data: Int[Array, "max_num_adjacent_simplices 4"],
-    vertices: Float[Array, "num_vertices dim"],
+    old_solution_vector: Float[jax.Array, "num_vertices"],
+    tensor_field: Float[jax.Array, "num_simplices dim dim"],
+    adjacency_data: Int[jax.Array, "max_num_adjacent_simplices 4"],
+    vertices: Float[jax.Array, "num_vertices dim"],
     use_soft_update: bool,
     softminmax_order: int,
     softminmax_cutoff: Real,
-) -> Float[Array, "max_num_adjacent_simplices 4"]:
+) -> Float[jax.Array, "max_num_adjacent_simplices 4"]:
     """Compute all update candidates for a given vertex.
 
     This method combines all updates from adjacent triangles to a given vertex, as computed in the
@@ -348,9 +348,9 @@ def compute_vertex_update_candidates(
 
     Args:
         old_solution_vector (jnp.ndarray): Given solution vector, as per a previous iteration
-        tensor_field (jnp.ndarray): Array of all tensor fields
+        tensor_field (jnp.ndarray): jax.Array of all tensor fields
         adjacency_data (jnp.ndarray): Data of all adjacent triangles and corresponding vertices
-        vertices (jnp.ndarray): Array of all vertex coordinates
+        vertices (jnp.ndarray): jax.Array of all vertex coordinates
         softminmax_order (Int): Order of the soft minmax function for the update parameter, see
             `compute_softminmax`
         softminmax_cutoff (Float): Cutoff value for the soft minmax computation, see
@@ -407,8 +407,8 @@ jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft,
 
 # --------------------------------------------------------------------------------------------------
 def grad_softmin(
-    args: Float[Array, "num_args"], min_arg: Float[Array, ""], _order: int
-) -> Float[Array, "num_args"]:
+    args: Float[jax.Array, "num_args"], min_arg: Float[jax.Array, ""], _order: int
+) -> Float[jax.Array, "num_args"]:
     """The gradient of the softmin function requires further masking of infeasible values.
 
     NOTE: this is only the gradient of the softmin function for identical, minimal values!
