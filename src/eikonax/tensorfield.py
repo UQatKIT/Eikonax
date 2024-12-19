@@ -20,6 +20,7 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
         map: Interface for vector-so-simplex mapping
     """
 
+    # ----------------------------------------------------------------------------------------------
     @abstractmethod
     def map(
         self, simplex_ind: Int[Array, ""], parameters: Real[Array, "num_parameters"]
@@ -52,6 +53,7 @@ class LinearScalarMap(BaseVectorToSimplicesMap):
     order as the simplices.
     """
 
+    # ----------------------------------------------------------------------------------------------
     def map(
         self, simplex_ind: Int[Array, ""], parameters: Real[Array, "num_parameters_local"]
     ) -> Real[Array, ""]:
@@ -83,8 +85,10 @@ class BaseSimplexTensor(ABC, eqx.Module):
         derivative: Parametric derivative of the `assemble` method
     """
 
+    # Equinox modules are data classes, so we have to define attributes at the class level
     _dimension: int
 
+    # ----------------------------------------------------------------------------------------------
     def __init__(self, dimension: int) -> None:
         """Constructor, simply fixes the dimension of the tensor field."""
         self._dimension = dimension
@@ -187,7 +191,7 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
 
 
 # ==================================================================================================
-class TensorField:
+class TensorField(eqx.Module):
     """Tensor field components.
 
     Tensor fields combine the functionality of vector-to-simplices maps and simplex tensors
@@ -206,6 +210,7 @@ class TensorField:
             parameter vector and derivative of the solution vector w.r.t. the tensor field
     """
 
+    # Equinox modules are data classes, so we have to define attributes at the class level
     _num_simplices: int
     _simplex_inds: Float[Array, "num_simplices"]
     _vector_to_simplices_map: BaseVectorToSimplicesMap

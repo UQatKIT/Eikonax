@@ -4,10 +4,13 @@ Returns:
     _type_: _description_
 """
 
+from numbers import Real
+
 import chex
 import jax
 import jax.numpy as jnp
-from jaxtyping import Array, Float, Int, Real
+from jaxtyping import Array, Float, Int
+from jaxtyping import Real as jaxReal
 
 
 # ==================================================================================================
@@ -52,7 +55,7 @@ class InitialSites:
 
 # ==================================================================================================
 def compute_softmin(
-    args: Real[Array, "..."], min_arg: Real[Array, ""], order: int
+    args: jaxReal[Array, "..."], min_arg: jaxReal[Array, ""], order: int
 ) -> Float[Array, ""]:
     """Numerically stable computation of the softmin function based on the Boltzmann operator.
 
@@ -79,7 +82,7 @@ def compute_softmin(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_softminmax(value: Real[Array, "..."], order: int) -> Float[Array, "..."]:
+def compute_softminmax(value: jaxReal[Array, "..."], order: int) -> Float[Array, "..."]:
     """Smooth double ReLU-type approximation that restricts a variable to the interval [0, 1].
 
     The method is numerically stable, obeys the value range, and does not introduce any new extrema.
@@ -273,7 +276,7 @@ def compute_update_candidates_from_adjacent_simplex(
     vertices: Float[Array, "num_vertices dim"],
     use_soft_update: bool,
     softminmax_order: int,
-    softminmax_cutoff: int | float,
+    softminmax_cutoff: Real,
 ) -> tuple[Float[Array, "4"], Float[Array, "4"]]:
     """Compute all possible update candidates from an adjacent triangle.
 
@@ -325,7 +328,7 @@ def compute_vertex_update_candidates(
     vertices: Float[Array, "num_vertices dim"],
     use_soft_update: bool,
     softminmax_order: int,
-    softminmax_cutoff: int | float,
+    softminmax_cutoff: Real,
 ) -> Float[Array, "max_num_adjacent_simplices 4"]:
     """Compute all update candidates for a given vertex.
 

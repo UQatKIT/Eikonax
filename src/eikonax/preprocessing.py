@@ -2,9 +2,8 @@
 
 from collections.abc import Iterable
 
-import jax.numpy as jnp
 import numpy as np
-from jaxtyping import Array, Float, Int
+from jaxtyping import Float, Int
 from scipy.spatial import Delaunay
 
 
