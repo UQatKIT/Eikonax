@@ -49,7 +49,18 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["EM101", "EM102", "TRY003", "COM812", "RET504", "S101", "PD008", "F722", "F821", "PT003"]
+ignore = [
+  "EM101",
+  "EM102",
+  "TRY003",
+  "COM812",
+  "RET504",
+  "S101",
+  "PD008",
+  "F722",
+  "F821",
+  "PT003",
+]
 pydocstyle.convention = "google"
 
 [tool.pytest.ini_options]
@@ -58,6 +69,7 @@ addopts = [
   "-v",
   "--import-mode=importlib",
   "--cov=eikonax",
+  "--cov-config=.coveragerc",
 ]
 markers = [
   "unit: unit tests",
