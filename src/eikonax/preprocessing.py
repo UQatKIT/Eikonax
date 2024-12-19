@@ -1,17 +1,20 @@
 """_summary_."""
 
+from collections.abc import Iterable
+
 import jax.numpy as jnp
 import numpy as np
+from jaxtyping import Array, Float, Int
 from scipy.spatial import Delaunay
 
 
 # ==================================================================================================
 def create_test_mesh(
-    mesh_bounds_x: tuple[float, float],
-    mesh_bounds_y: tuple[float, float],
+    mesh_bounds_x: Iterable[float, float],
+    mesh_bounds_y: Iterable[float, float],
     num_points_x: int,
     num_points_y: int,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[Float[np.ndarray, "num_vertices dim"], Int[np.ndarray, "num_simplices 3"]]:
     """Create a simple test mesh with Scipy's Delauny functionality.
 
     This methods creates a imple square mesh with Delauny triangulation.
@@ -46,13 +49,13 @@ def create_test_mesh(
         (np.repeat(mesh_points_x, num_points_x), np.tile(mesh_points_y, num_points_y))
     )
     triangulation = Delaunay(mesh_points)
-    vertices = jnp.array(triangulation.points)
-    simplices = jnp.array(triangulation.simplices)
-    return vertices, simplices
+    return triangulation.points, triangulation.simplices
 
 
 # --------------------------------------------------------------------------------------------------
-def get_adjacent_vertex_data(simplices: jnp.ndarray, num_vertices: int) -> jnp.ndarray:
+def get_adjacent_vertex_data(
+    simplices: Int[np.ndarray, "num_simplices 3"], num_vertices: int
+) -> Int[np.ndarray, "num_vertices max_num_adjacent_simplices 4"]:
     """Preprocess mesh data for a vertex-centered evaluation.
 
     Standard mesh tools provide vertex coordinates and the vertex indices for each simplex.
@@ -70,9 +73,10 @@ def get_adjacent_vertex_data(simplices: jnp.ndarray, num_vertices: int) -> jnp.n
             vertices. To ensure homogeneous arrays, all vertices have the same (maximum) number
             of adjacent simplices. Non-existing simplices are buffered with the value -1.
     """
-    simplices = np.array(simplices)
     max_num_adjacent_simplices = np.max(np.bincount(simplices.flatten()))
-    adjacent_vertex_inds = -1 * np.ones((num_vertices, max_num_adjacent_simplices, 4), dtype=int)
+    adjacent_vertex_inds = -1 * np.ones(
+        (num_vertices, max_num_adjacent_simplices, 4), dtype=np.int32
+    )
     counter_array = np.zeros(num_vertices, dtype=int)
     node_permutations = ((0, 1, 2), (1, 0, 2), (2, 0, 1))
 
@@ -83,10 +87,4 @@ def get_adjacent_vertex_data(simplices: jnp.ndarray, num_vertices: int) -> jnp.n
                 [center_vertex, adj_vertex_1, adj_vertex_2, simplex_inds]
             )
             counter_array[center_vertex] += 1
-
-    adjacent_vertex_inds = jnp.array(adjacent_vertex_inds)
-    assert adjacent_vertex_inds.shape == (num_vertices, max_num_adjacent_simplices, 4), (
-        f"Shape of adjacent vertex data is {adjacent_vertex_inds.shape} "
-        f"but should be {(num_vertices, max_num_adjacent_simplices, 4)}"
-    )
     return adjacent_vertex_inds

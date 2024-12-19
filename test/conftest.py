@@ -14,7 +14,7 @@ def test_mesh_small():
         "num_points_y": 3,
     }
 
-    vertices = jnp.array(
+    vertices = np.array(
         [
             [0.0, 0.0],
             [0.0, 0.5],
@@ -26,12 +26,12 @@ def test_mesh_small():
             [1.0, 0.5],
             [1.0, 1.0],
         ],
-        dtype=jnp.float32,
+        dtype=np.float32,
     )
 
-    simplices = jnp.array(
+    simplices = np.array(
         [[1, 3, 4], [3, 1, 0], [5, 1, 4], [1, 5, 2], [3, 7, 4], [7, 3, 6], [7, 5, 4], [5, 7, 8]],
-        dtype=jnp.int32,
+        dtype=np.int32,
     )
 
     return vertices, simplices, meta_data
@@ -40,7 +40,7 @@ def test_mesh_small():
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="function")
 def adjacency_data_for_test_mesh_small():
-    adjacency_data = jnp.array(
+    adjacency_data = np.array(
         [
             [[0, 3, 1, 1], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]],
             [[1, 3, 4, 0], [1, 3, 0, 1], [1, 5, 4, 2], [1, 5, 2, 3]],
@@ -51,7 +51,8 @@ def adjacency_data_for_test_mesh_small():
             [[6, 7, 3, 5], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]],
             [[7, 3, 4, 4], [7, 3, 6, 5], [7, 5, 4, 6], [7, 5, 8, 7]],
             [[8, 5, 7, 7], [-1, -1, -1, -1], [-1, -1, -1, -1], [-1, -1, -1, -1]],
-        ]
+        ],
+        dtype=np.int32,
     )
 
     return adjacency_data
@@ -60,19 +61,36 @@ def adjacency_data_for_test_mesh_small():
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="function")
 def mock_simplex_data():
-    edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
-    parameter_tensor = jnp.identity(2)
-    solution_values = jnp.array([0, 0])
+    edges = (
+        jnp.array([1, 0], dtype=jnp.float32),
+        jnp.array([0, 1], dtype=jnp.float32),
+        jnp.array([1, -1], dtype=jnp.float32),
+    )
+    parameter_tensor = jnp.identity(2, dtype=jnp.float32)
+    solution_values = jnp.array([0, 0], dtype=jnp.float32)
     return solution_values, parameter_tensor, edges
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(
     scope="function",
-    params=[(jnp.array([0.0, 0.0]), [0.5, 0.5]), (jnp.array([0.0, 1.0]), [1.0, 0.0])],
+    params=[
+        (
+            jnp.array([0.0, 0.0], jnp.float32),
+            (jnp.array(0.5, dtype=jnp.float32), jnp.array(0.5, dtype=jnp.float32)),
+        ),
+        (
+            jnp.array([0.0, 1.0], jnp.float32),
+            (jnp.array(1.0, dtype=jnp.float32), jnp.array(0.0, dtype=jnp.float32)),
+        ),
+    ],
 )
 def simplex_data_for_lambda(request):
-    edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
+    edges = (
+        jnp.array([1, 0], jnp.float32),
+        jnp.array([0, 1], jnp.float32),
+        jnp.array([1, -1], jnp.float32),
+    )
     parameter_tensor = jnp.identity(2)
     solution_values, lambda_values = request.param
     return solution_values, parameter_tensor, edges, lambda_values
@@ -81,25 +99,35 @@ def simplex_data_for_lambda(request):
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="function")
 def simplex_data_for_update():
-    edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
+    edges = (
+        jnp.array([1, 0], dtype=jnp.float32),
+        jnp.array([0, 1], dtype=jnp.float32),
+        jnp.array([1, -1], dtype=jnp.float32),
+    )
     parameter_tensor = jnp.identity(2)
-    solution_values = jnp.array([0.1, 0.7])
-    lambda_value = 0.4
-    update_value = 0.34 + jnp.sqrt(0.52)
+    solution_values = jnp.array([0.1, 0.7], dtype=jnp.float32)
+    lambda_value = jnp.array(0.4, dtype=jnp.float32)
+    update_value = jnp.array(0.34 + jnp.sqrt(0.52), dtype=jnp.float32)
     return solution_values, parameter_tensor, lambda_value, edges, update_value
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="function")
 def simplex_data_for_derivatives():
-    edges = (jnp.array([1, 0]), jnp.array([0, 1]), jnp.array([1, -1]))
+    edges = (
+        jnp.array([1, 0], dtype=jnp.float32),
+        jnp.array([0, 1], dtype=jnp.float32),
+        jnp.array([1, -1], dtype=jnp.float32),
+    )
     parameter_tensor = jnp.identity(2)
-    solution_values = jnp.array([0.1, 0.7])
-    lambda_value = 0.4
+    solution_values = jnp.array([0.1, 0.7], dtype=jnp.float32)
+    lambda_value = jnp.array(0.4, dtype=jnp.float32)
     simplex_data = solution_values, parameter_tensor, lambda_value, edges
-    grad_update_solution = jnp.array([0.6, 0.4])
-    grad_update_parameter = jnp.array([[0.2496151, 0.16641007], [0.16641006, 0.11094004]])
-    grad_update_lambda = jnp.array(0.32264987)
+    grad_update_solution = jnp.array([0.6, 0.4], dtype=jnp.float32)
+    grad_update_parameter = jnp.array(
+        [[0.2496151, 0.16641007], [0.16641006, 0.11094004]], dtype=jnp.float32
+    )
+    grad_update_lambda = jnp.array(0.32264987, dtype=jnp.float32)
     return simplex_data, grad_update_solution, grad_update_parameter, grad_update_lambda
 
 
@@ -108,7 +136,9 @@ def simplex_data_for_derivatives():
 def vertex_update_data(test_mesh_small, adjacency_data_for_test_mesh_small):
     vertices, simplices, _ = test_mesh_small
     adjacency_data = adjacency_data_for_test_mesh_small
-    tensor_field = jnp.repeat(jnp.identity(2)[jnp.newaxis, :, :], simplices.shape[0], axis=0)
+    tensor_field = jnp.repeat(
+        jnp.identity(2, dtype=jnp.float32)[jnp.newaxis, :, :], simplices.shape[0], axis=0
+    )
     softminmax_order = 20
     softminmax_cutoff = 1
 
@@ -120,7 +150,7 @@ def vertex_update_data(test_mesh_small, adjacency_data_for_test_mesh_small):
 def vertex_update_without_softmin(vertex_update_data):
     use_soft_update = False
     solution_values = jnp.array(
-        (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602)
+        (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
     vertex_update_candidates = jnp.array(
         [
@@ -190,7 +220,7 @@ def vertex_update_without_softmin(vertex_update_data):
 def vertex_update_with_softmin(vertex_update_data):
     use_soft_update = True
     solution_values = jnp.array(
-        (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602)
+        (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
     vertex_update_candidates = jnp.array(
         [

@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy as sp
+from jaxtyping import Array, Float, Int
 
 from . import corefunctions
 
@@ -39,8 +40,8 @@ class PartialDerivator(eqx.Module):
     """
 
     # Equinox modules are data classes, so we need to specify attributes on class level
-    _vertices: jnp.ndarray
-    _adjacency_data: jnp.ndarray
+    _vertices: Float[Array, "num_vertices dim"]
+    _adjacency_data: Int[Array, "num_vertices max_num_adjacent_simplices 4"]
     _initial_sites: corefunctions.InitialSites
     _softmin_order: int
     _softminmax_order: int
@@ -71,9 +72,20 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def compute_partial_derivatives(
         self,
-        solution_vector: jnp.ndarray,
-        tensor_field: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        solution_vector: Float[Array, "num_vertices"],
+        tensor_field: Float[Array, "num_simplices dim dim"],
+    ) -> tuple[
+        tuple[
+            Int[Array, "num_sol_values"],
+            Int[Array, "num_sol_values"],
+            Float[Array, "num_sol_values"],
+        ],
+        tuple[
+            Int[Array, "num_param_values"],
+            Int[Array, "num_param_values"],
+            Float[Array, "num_param_values dim dim"],
+        ],
+    ]:
         """Compute the partial derivatives of the Godunov update operator.
 
         This method provided the main interface for computing the partial derivatives of the global
@@ -113,8 +125,12 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compress_partial_derivative_solution(
         self,
-        partial_derivative_solution: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        partial_derivative_solution: Float[Array, "num_vertices max_num_adjacent_simplices 2"],
+    ) -> tuple[
+        Int[Array, "num_sol_values"],
+        Int[Array, "num_sol_values"],
+        Float[Array, "num_sol_values"],
+    ]:
         """Compress the partial derivative data with respect to the solution vector.
 
         Compression consists of two steps:
@@ -148,8 +164,15 @@ class PartialDerivator(eqx.Module):
 
     # ----------------------------------------------------------------------------------------------
     def _compress_partial_derivative_parameter(
-        self, partial_derivative_parameter: jnp.ndarray
-    ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        self,
+        partial_derivative_parameter: Float[
+            Array, "num_vertices max_num_adjacent_simplices dim dim"
+        ],
+    ) -> tuple[
+        Int[Array, "num_param_values"],
+        Int[Array, "num_param_values"],
+        Float[Array, "num_param_values dim dim"],
+    ]:
         """Compress the partial derivative data with respect to the parameter field.
 
         Compression consists of two steps:
@@ -188,9 +211,12 @@ class PartialDerivator(eqx.Module):
     @eqx.filter_jit
     def _compute_global_partial_derivatives(
         self,
-        solution_vector: jnp.ndarray,
-        tensor_field: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        solution_vector: Float[Array, "num_vertices"],
+        tensor_field: Float[Array, "num_simplices dim dim"],
+    ) -> tuple[
+        Float[Array, "num_vertices max_num_adjacent_simplices 2"],
+        Float[Array, "num_vertices max_num_adjacent_simplices dim dim"],
+    ]:
         """Compute partial derivatives of the global update operator.
 
         The method is a jitted and vectorized call to the `_compute_vertex_partial_derivative`
@@ -205,14 +231,6 @@ class PartialDerivator(eqx.Module):
                 (N, num_adjacent_simplices, dim, dim), N depends on the number of
                 identical update paths for the vertices in the mesh.
         """
-        assert solution_vector.shape[0] == self._vertices.shape[0], (
-            f"Solution vector needs to have shape {self._vertices.shape[0]}, "
-            f"but has shape {solution_vector.shape}"
-        )
-        assert self._adjacency_data.shape[0] == self._vertices.shape[0], (
-            f"Adjacent simplex indix array needs to have shape {self._vertices.shape[0]}, "
-            f"but has shape {self._adjacency_data.shape[0]}"
-        )
         global_partial_derivative_function = jax.vmap(
             self._compute_vertex_partial_derivatives,
             in_axes=(None, None, 0),
@@ -220,29 +238,18 @@ class PartialDerivator(eqx.Module):
         partial_derivative_solution, partial_derivative_parameter = (
             global_partial_derivative_function(solution_vector, tensor_field, self._adjacency_data)
         )
-
-        max_num_adjacent_simplices = self._adjacency_data.shape[1]
-        tensor_dim = tensor_field.shape[1]
-        assert partial_derivative_solution.shape == (
-            solution_vector.shape[0],
-            max_num_adjacent_simplices,
-            2,
-        )
-        assert partial_derivative_parameter.shape == (
-            solution_vector.shape[0],
-            max_num_adjacent_simplices,
-            tensor_dim,
-            tensor_dim,
-        )
         return partial_derivative_solution, partial_derivative_parameter
 
     # ----------------------------------------------------------------------------------------------
     def _compute_vertex_partial_derivatives(
         self,
-        solution_vector: jnp.ndarray,
-        tensor_field: jnp.ndarray,
-        adjacency_data: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        solution_vector: Float[Array, "num_vertices"],
+        tensor_field: Float[Array, "num_simplices dim dim"],
+        adjacency_data: Int[Array, "max_num_adjacent_simplices 4"],
+    ) -> tuple[
+        Float[Array, "max_num_adjacent_simplices 2"],
+        Float[Array, "max_num_adjacent_simplices dim dim"],
+    ]:
         """Compute partial derivatives for the update of a single vertex.
 
         The method computes candidates for all respective subterms through calls to further methods.
@@ -307,10 +314,13 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compute_vertex_partial_derivative_candidates(
         self,
-        solution_vector: jnp.ndarray,
-        tensor_field: jnp.ndarray,
-        adjacency_data: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        solution_vector: Float[Array, "num_vertices"],
+        tensor_field: Float[Array, "num_simplices dim dim"],
+        adjacency_data: Int[Array, "max_num_adjacent_simplices 4"],
+    ) -> tuple[
+        Float[Array, "max_num_adjacent_simplices 4 2"],
+        Float[Array, "max_num_adjacent_simplices 4 dim dim"],
+    ]:
         """Compute partial derivatives corresponding to potential update candidates for a vertex.
 
         Update candidates and corresponding derivatives are computed for all adjacent simplices,
@@ -326,9 +336,11 @@ class PartialDerivator(eqx.Module):
         """
         max_num_adjacent_simplices = adjacency_data.shape[0]
         tensor_dim = tensor_field.shape[1]
-        grad_update_solution_candidates = jnp.zeros((max_num_adjacent_simplices, 4, 2))
+        grad_update_solution_candidates = jnp.zeros(
+            (max_num_adjacent_simplices, 4, 2), dtype=jnp.float32
+        )
         grad_update_parameter_candidates = jnp.zeros(
-            (max_num_adjacent_simplices, 4, tensor_dim, tensor_dim)
+            (max_num_adjacent_simplices, 4, tensor_dim, tensor_dim), dtype=jnp.float32
         )
 
         for i, indices in enumerate(adjacency_data):
@@ -349,10 +361,10 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compute_partial_derivative_candidates_from_adjacent_simplex(
         self,
-        solution_vector: jnp.ndarray,
-        tensor_field: jnp.ndarray,
-        adjacency_data: jnp.ndarray,
-    ) -> tuple[jnp.ndarray, jnp.ndarray]:
+        solution_vector: Float[Array, "num_vertices"],
+        tensor_field: Float[Array, "num_simplices dim dim"],
+        adjacency_data: Int[Array, "4"],
+    ) -> tuple[Float[Array, "4 2"], Float[Array, "4 dim dim"]]:
         """Compute partial derivatives for all update candidates within an adjacent simplex.
 
         The update candidates are evaluated according to the different candidates for the
@@ -367,9 +379,6 @@ class PartialDerivator(eqx.Module):
         Returns:
             tuple[jnp.ndarray, jnp.ndarray]: Derivative candidate from the given simplex
         """
-        assert (
-            len(adjacency_data) == 4
-        ), f"Indices need to have length 4, but have length {len(adjacency_data)}"
         i, j, k, s = adjacency_data
         tensor_dim = tensor_field.shape[1]
         solution_values = jnp.array((solution_vector[j], solution_vector[k]))
@@ -413,10 +422,14 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     @staticmethod
     def _filter_candidates(
-        vertex_update_candidates: jnp.ndarray,
-        grad_update_solution_candidates: jnp.ndarray,
-        grad_update_parameter_candidates: jnp.ndarray,
-    ) -> tuple[float, jnp.ndarray, jnp.ndarray]:
+        vertex_update_candidates: Float[Array, "max_num_adjacent_simplices 4"],
+        grad_update_solution_candidates: Float[Array, "max_num_adjacent_simplices 4 2"],
+        grad_update_parameter_candidates: Float[Array, "max_num_adjacent_simplices 4 dim dim"],
+    ) -> tuple[
+        Float[Array, ""],
+        Float[Array, "max_num_adjacent_simplices 4 2"],
+        Float[Array, "max_num_adjacent_simplices 4 dim dim"],
+    ]:
         """Mask irrelevant derivative candidates so that they are discarded later.
 
         Values are masked by setting them to zero or infinity, depending on the routine in which
@@ -451,10 +464,10 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compute_lambda_grad(
         self,
-        solution_values: jnp.ndarray,
-        parameter_tensor: jnp.ndarray,
-        edges: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
-    ) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+        solution_values: Float[Array, "2"],
+        parameter_tensor: Float[Array, "dim dim"],
+        edges: tuple[Float[Array, "dim"], Float[Array, "dim"], Float[Array, "dim"]],
+    ) -> tuple[Float[Array, "4 2"], Float[Array, "4 dim dim"]]:
         """Compute the partial derivatives of update parameters for a single vertex.
 
         This method evaluates the partial derivatives of the update parameters with respect to the
@@ -515,8 +528,12 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        solution: jnp.ndarray,
-        sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+        solution: Float[Array, "num_vertices"],
+        sparse_partial_update_solution: tuple[
+            Int[Array, "num_sol_values"],
+            Int[Array, "num_sol_values"],
+            Float[Array, "num_sol_values"],
+        ],
     ) -> None:
         """Constructor for the derivative solver.
 
@@ -531,13 +548,21 @@ class DerivativeSolver:
                 through summation in the sparse matrix assembly later.
         """
         num_points = solution.size
-        self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
+        numpy_solution = np.array(solution, dtype=np.float32)
+        numpy_sparse_partial_update_solution = (
+            np.array(sparse_partial_update_solution[0], dtype=np.int32),
+            np.array(sparse_partial_update_solution[1], dtype=np.int32),
+            np.array(sparse_partial_update_solution[2], dtype=np.float32),
+        )
+        self._sparse_permutation_matrix = self._assemble_permutation_matrix(numpy_solution)
         self._sparse_system_matrix = self._assemble_system_matrix(
-            sparse_partial_update_solution, num_points
+            numpy_sparse_partial_update_solution, num_points
         )
 
     # ----------------------------------------------------------------------------------------------
-    def solve(self, right_hand_side: np.ndarray | jnp.ndarray) -> np.ndarray:
+    def solve(
+        self, right_hand_side: Float[np.ndarray, "num_vertices"] | Float[Array, "num_vertices"]
+    ) -> Float[np.ndarray, "num_parameters"]:
         """Solve the linear system for the parametric gradient.
 
         The right-hand-siide needs to be given as the partial derivative of the prescribed cost
@@ -552,6 +577,7 @@ class DerivativeSolver:
             np.ndarray: Solution of the linear system solve, corresponding to the adjoint in an
                 optimization context.
         """
+        right_hand_side = np.array(right_hand_side, dtype=np.float32)
         permutated_right_hand_side = self._sparse_permutation_matrix @ right_hand_side
         permutated_solution = sp.sparse.linalg.spsolve_triangular(
             self._sparse_system_matrix, permutated_right_hand_side, lower=False, unit_diagonal=True
@@ -561,7 +587,9 @@ class DerivativeSolver:
         return solution
 
     # ----------------------------------------------------------------------------------------------
-    def _assemble_permutation_matrix(self, solution: jnp.ndarray) -> sp.sparse.csc_matrix:
+    def _assemble_permutation_matrix(
+        self, solution: Float[np.ndarray, "num_vertices"]
+    ) -> sp.sparse.csc_matrix:
         """Construct permutation matrix for index ordering.
 
         From a given solution vector, we know from the properties of the upwind update scheme
@@ -577,9 +605,9 @@ class DerivativeSolver:
             sp.sparse.csc_matrix: Sparse permutation matrix
         """
         num_points = solution.size
-        permutation_row_inds = jnp.arange(solution.size)
-        permutation_col_inds = jnp.argsort(solution)
-        permutation_values = jnp.ones(solution.size)
+        permutation_row_inds = np.arange(solution.size)
+        permutation_col_inds = np.argsort(solution)
+        permutation_values = np.ones(solution.size)
         sparse_permutation_matrix = sp.sparse.csc_matrix(
             (permutation_values, (permutation_row_inds, permutation_col_inds)),
             shape=(num_points, num_points),
@@ -590,7 +618,11 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def _assemble_system_matrix(
         self,
-        sparse_partial_update_solution: tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray],
+        sparse_partial_update_solution: tuple[
+            Int[np.ndarray, "num_sol_values"],
+            Int[np.ndarray, "num_sol_values"],
+            Float[np.ndarray, "num_sol_values"],
+        ],
         num_points: int,
     ) -> sp.sparse.csc_matrix:
         """Assemble system matrix for gradient solver.

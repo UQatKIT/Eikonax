@@ -38,7 +38,19 @@ def test_compute_softmin(input_values, expected_output, order):
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("order", [1, 10, 1000])
-@pytest.mark.parametrize("input_value", [0, 1, 0.25, 0.75, -1000, 1000, -jnp.inf, jnp.inf])
+@pytest.mark.parametrize(
+    "input_value",
+    [
+        jnp.array(0),
+        jnp.array(1),
+        jnp.array(0.25),
+        jnp.array(0.75),
+        jnp.array(-1000),
+        jnp.array(1000),
+        jnp.array(-jnp.inf),
+        jnp.array(jnp.inf),
+    ],
+)
 def test_bounds_compute_softminmax(input_value, order):
     output = corefunctions.compute_softminmax(input_value, order)
     assert jnp.all(output >= 0)
@@ -72,7 +84,9 @@ def test_values_compute_softminmax():
 def test_compute_edges():
     test_vertices = jnp.array(([-1, -1], [1, 0], [0.5, 2]))
     expected_edges = (jnp.array([-2, -1]), jnp.array([-1.5, -3]), jnp.array([-0.5, 2]))
-    output_edges = corefunctions.compute_edges(0, 1, 2, test_vertices)
+    output_edges = corefunctions.compute_edges(
+        jnp.array(0), jnp.array(1), jnp.array(2), test_vertices
+    )
     for output_edge, expected_edge in zip(output_edges, expected_edges, strict=True):
         assert jnp.allclose(output_edge, expected_edge)
 
@@ -113,7 +127,7 @@ def test_compute_optimal_update_parameters_hard(
 # --------------------------------------------------------------------------------------------------
 def test_compute_optimal_update_parameters_soft(monkeypatch, mock_simplex_data):
     order, cutoff = 1, 1
-    lambda_input = [-1.1, 2.1]
+    lambda_input = [jnp.array(-1.1, dtype=jnp.float32), jnp.array(2.1, dtype=jnp.float32)]
     monkeypatch.setattr(
         "eikonax.corefunctions._compute_optimal_update_parameters", lambda *_: lambda_input
     )
@@ -140,6 +154,8 @@ def test_compute_vertex_update_candidates(vertex_update_fixture, request):
         request.getfixturevalue(vertex_update_fixture)
     )
     vertices, adjacency_data, tensor_field, softminmax_order, softminmax_cutoff = vertex_update_data
+    vertices = jnp.array(vertices, dtype=jnp.float32)
+    adjacency_data = jnp.array(adjacency_data, dtype=jnp.int32)
 
     for i in range(vertices.shape[0]):
         adj_data = adjacency_data[i, ...]
