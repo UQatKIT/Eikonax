@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 import scipy as sp
 from jaxtyping import Array, Float, Int, Real
 
@@ -242,7 +243,7 @@ class TensorField(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
     def assemble_field(
-        self, parameter_vector: Float[Array, "num_parameters_global"]
+        self, parameter_vector: Float[Array | np.ndarray, "num_parameters_global"]
     ) -> Float[Array, "num_simplex dim dim"]:
         """Assemble global tensor field from global parameter vector.
 
@@ -255,6 +256,7 @@ class TensorField(eqx.Module):
         Returns:
             jnp.ndarray: Global tensor field
         """
+        parameter_vector = jnp.array(parameter_vector, dtype=jnp.float32)
         simplex_map = jax.vmap(self._vector_to_simplices_map.map, in_axes=(0, None))
         field_assembly = jax.vmap(self._simplex_tensor.assemble, in_axes=(0, 0))
         simplex_params = simplex_map(self._simplex_inds, parameter_vector)
@@ -269,7 +271,7 @@ class TensorField(eqx.Module):
         derivative_solution_tensor: tuple[
             Int[Array, "num_values"], Int[Array, "num_values"], Float[Array, "num_values dim dim"]
         ],
-        parameter_vector: Float[Array, "num_parameters_global"],
+        parameter_vector: Float[Array | np.ndarray, "num_parameters_global"],
     ) -> sp.sparse.coo_matrix:
         """Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
 
@@ -304,6 +306,7 @@ class TensorField(eqx.Module):
                 global parameter vector, of shape N x M
         """
         row_inds, simplex_inds, derivative_solution_tensor_values = derivative_solution_tensor
+        parameter_vector = jnp.array(parameter_vector, dtype=jnp.float32)
         values, col_inds = self._assemble_jacobian(
             simplex_inds,
             derivative_solution_tensor_values,

@@ -72,8 +72,8 @@ class PartialDerivator(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def compute_partial_derivatives(
         self,
-        solution_vector: Float[Array, "num_vertices"],
-        tensor_field: Float[Array, "num_simplices dim dim"],
+        solution_vector: Float[Array | np.ndarray, "num_vertices"],
+        tensor_field: Float[Array | np.ndarray, "num_simplices dim dim"],
     ) -> tuple[
         tuple[
             Int[Array, "num_sol_values"],
@@ -108,6 +108,8 @@ class PartialDerivator(eqx.Module):
                 the solution vector and the parameter tensor field. Both quantities are given as
                 arrays over all local contributions, making them sparse in the global context.
         """
+        solution_vector = jnp.array(solution_vector, dtype=jnp.float32)
+        tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
         partial_derivative_solution, partial_derivative_parameter = (
             self._compute_global_partial_derivatives(
                 solution_vector,
@@ -528,7 +530,7 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        solution: Float[Array, "num_vertices"],
+        solution: Float[Array | np.ndarray, "num_vertices"],
         sparse_partial_update_solution: tuple[
             Int[Array, "num_sol_values"],
             Int[Array, "num_sol_values"],
@@ -548,20 +550,20 @@ class DerivativeSolver:
                 through summation in the sparse matrix assembly later.
         """
         num_points = solution.size
-        numpy_solution = np.array(solution, dtype=np.float32)
-        numpy_sparse_partial_update_solution = (
+        solution = np.array(solution, dtype=np.float32)
+        sparse_partial_update_solution = (
             np.array(sparse_partial_update_solution[0], dtype=np.int32),
             np.array(sparse_partial_update_solution[1], dtype=np.int32),
             np.array(sparse_partial_update_solution[2], dtype=np.float32),
         )
-        self._sparse_permutation_matrix = self._assemble_permutation_matrix(numpy_solution)
+        self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
         self._sparse_system_matrix = self._assemble_system_matrix(
-            numpy_sparse_partial_update_solution, num_points
+            sparse_partial_update_solution, num_points
         )
 
     # ----------------------------------------------------------------------------------------------
     def solve(
-        self, right_hand_side: Float[np.ndarray, "num_vertices"] | Float[Array, "num_vertices"]
+        self, right_hand_side: Float[Array | np.ndarray, "num_vertices"]
     ) -> Float[np.ndarray, "num_parameters"]:
         """Solve the linear system for the parametric gradient.
 

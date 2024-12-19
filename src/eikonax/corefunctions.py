@@ -4,11 +4,13 @@ Returns:
     _type_: _description_
 """
 
+from collections.abc import Iterable
 from numbers import Real
 
 import chex
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array, Float, Int
 from jaxtyping import Real as jaxReal
 
@@ -31,8 +33,12 @@ class MeshData:
             adjacent simplices, the remaining entries are filled with -1.
     """
 
-    vertices: Float[Array, "num_vertices dim"]
-    adjacency_data: Float[Array, "num_vertices max_num_adjacent_simplices 4"]
+    vertices: Float[Array | np.ndarray, "num_vertices dim"]
+    adjacency_data: Float[Array | np.ndarray, "num_vertices max_num_adjacent_simplices 4"]
+
+    def __post_init__(self) -> None:
+        self.vertices = jnp.array(self.vertices, dtype=jnp.float32)
+        self.adjacency_data = jnp.array(self.adjacency_data, dtype=jnp.int32)
 
 
 @chex.dataclass
@@ -49,8 +55,12 @@ class InitialSites:
         values: The values of the initial sites.
     """
 
-    inds: Float[Array, "num_initial_sites"]
-    values: Float[Array, "num_initial_sites"]
+    inds: Float[Array | np.ndarray, "num_initial_sites"] | Iterable
+    values: Float[Array | np.ndarray, "num_initial_sites"] | Iterable
+
+    def __post_init__(self) -> None:
+        self.inds = jnp.array(self.inds, dtype=jnp.int32)
+        self.values = jnp.array(self.values, dtype=jnp.float32)
 
 
 # ==================================================================================================

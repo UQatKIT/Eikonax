@@ -6,6 +6,7 @@ import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
+import numpy as np
 from jaxtyping import Array, Bool, Float, Int
 
 from . import corefunctions, logging
@@ -162,7 +163,7 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def run(
         self,
-        tensor_field: Float[Array, "num_simplices dim dim"],
+        tensor_field: Float[Array | np.ndarray, "num_simplices dim dim"],
     ) -> Solution:
         """Main interface for cunducting solver runs.
 
@@ -179,6 +180,7 @@ class Solver(eqx.Module):
         Returns:
             Solution: Eikonax solution object.
         """
+        tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
         initial_guess = jnp.ones(self._vertices.shape[0]) * self._max_value
         initial_guess = initial_guess.at[self._initial_sites.inds].set(self._initial_sites.values)
 
