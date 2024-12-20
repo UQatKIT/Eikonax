@@ -5,7 +5,7 @@ name = "eikonax"
 requires-python = ">= 3.12"
 version = "0.1.0"
 readme = "README.md"
-license = { text = "MIT License" }
+license = { file = "LICENSE" }
 
 [build-system]
 build-backend = "hatchling.build"
