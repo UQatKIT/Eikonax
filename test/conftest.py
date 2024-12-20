@@ -287,7 +287,7 @@ def vertex_update_with_softmin(vertex_update_data):
     return vertex_update_data, use_soft_update, solution_values, vertex_update_candidates
 
 
-# ================================= Fixtures for Integration Tests =================================
+# ================================= Fixtures for jtIntegration Tests =================================
 @pytest.fixture(scope="module", params=[10, 100])
 def test_mesh_for_runs(request):
     mesh_bounds_x = (0, 1)

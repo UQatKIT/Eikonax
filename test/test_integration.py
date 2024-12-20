@@ -8,7 +8,7 @@ from eikonax import corefunctions, derivator, preprocessing, solver, tensorfield
 pytestmark = pytest.mark.integration
 
 
-# =============================== Integration Tests for Tensor Field ===============================
+# =============================== jtIntegration Tests for Tensor Field ===============================
 def test_tensor_field_assemble(tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor):
     data, object_Types = tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor
     dimension, num_simplices, parameter_vector, expected_tensor_field, _ = data
@@ -20,7 +20,7 @@ def test_tensor_field_assemble(tensorfield_setup_linear_scalar_map_linear_scalar
     assert jnp.allclose(field, expected_tensor_field)
 
 
-# ================================== Integration Tests for Solver ==================================
+# ================================== jtIntegration Tests for Solver ==================================
 @pytest.mark.slow
 def test_solver_run_2D_uniform_tensorfield(mesh_and_tensorfield_2D_uniform, eikonax_solver_data):
     vertices, simplices, tensor_field = mesh_and_tensorfield_2D_uniform
@@ -71,7 +71,7 @@ def test_solver_run_2D_function_tensorfield(mesh_and_tensorfield_2D_function, ei
     assert np.allclose(fimpython_solution, np.array(eikonax_solution.values), atol=1e-4)
 
 
-# ================================= Integration Tests for Derivator ================================
+# ================================= jtIntegration Tests for Derivator ================================
 @pytest.mark.slow
 def test_compute_partial_derivatives(setup_derivative_tests):
     input_data, fwd_solution, expected_partial_derivatives = setup_derivative_tests

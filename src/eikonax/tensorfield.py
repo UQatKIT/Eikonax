@@ -7,7 +7,8 @@ import jax
 import jax.numpy as jnp
 import numpy.typing as npt
 import scipy as sp
-from jaxtyping import Float, Int
+from jaxtyping import Float as jtFloat
+from jaxtyping import Int as jtInt
 from jaxtyping import Real as jtReal
 
 
@@ -19,13 +20,13 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
     the relevant parameters for a given simplex from the global parameter vector.
 
     Methods:
-        map: Interface for vector-so-simplex mapping
+        map: jtInterface for vector-so-simplex mapping
     """
 
     # ----------------------------------------------------------------------------------------------
     @abstractmethod
     def map(
-        self, simplex_ind: Int[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters"]
+        self, simplex_ind: jtInt[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters"]
     ) -> jtReal[jax.Array, "..."]:
         """Interface for vector-so-simplex mapping.
 
@@ -57,7 +58,9 @@ class LinearScalarMap(BaseVectorToSimplicesMap):
 
     # ----------------------------------------------------------------------------------------------
     def map(
-        self, simplex_ind: Int[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters_local"]
+        self,
+        simplex_ind: jtInt[jax.Array, ""],
+        parameters: jtReal[jax.Array, "num_parameters_local"],
     ) -> jtReal[jax.Array, ""]:
         """Return relevant parameters for a given simplex.
 
@@ -97,8 +100,10 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     @abstractmethod
     def assemble(
-        self, simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, "num_parameters_local"]
-    ) -> Float[jax.Array, "dim dim"]:
+        self,
+        simplex_ind: jtInt[jax.Array, ""],
+        parameters: jtFloat[jax.Array, "num_parameters_local"],
+    ) -> jtFloat[jax.Array, "dim dim"]:
         """Assemble the tensor field for given simplex and parameters.
 
         Given a parameter array of size n_local, the methods returns a tensor of size dim x dim.
@@ -119,8 +124,10 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     @abstractmethod
     def derivative(
-        self, simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, "num_parameters_local"]
-    ) -> Float[jax.Array, "dim dim num_parameters_local"]:
+        self,
+        simplex_ind: jtInt[jax.Array, ""],
+        parameters: jtFloat[jax.Array, "num_parameters_local"],
+    ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 
         Given a parameter array of size n_local, the methods returns a Jacobian tensor of size
@@ -153,8 +160,8 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
     """
 
     def assemble(
-        self, _simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, ""]
-    ) -> Float[jax.Array, "dim dim"]:
+        self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
+    ) -> jtFloat[jax.Array, "dim dim"]:
         """Assemble tensor for given simplex as parameter*Identity.
 
         the `parameters` argument is a scalar here, and `_simplex_ind` is not used. The method needs
@@ -171,15 +178,15 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         return tensor
 
     def derivative(
-        self, _simplex_ind: Int[jax.Array, ""], parameters: Float[jax.Array, ""]
-    ) -> Float[jax.Array, "dim dim num_parameters_local"]:
+        self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
+    ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 
         The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
             _simplex_ind (int): Index of simplex under consideration (not used)
-            _parameters (float): Parameter (scalar) for tensor assembly (not used)
+            parameters (float): Parameter (scalar) for tensor assembly (not used)
 
         Returns:
             jnp.ndarray: Jacobian tensor for the simplex under consideration
@@ -214,7 +221,7 @@ class TensorField(eqx.Module):
 
     # Equinox modules are data classes, so we have to define attributes at the class level
     _num_simplices: int
-    _simplex_inds: Float[jax.Array, "num_simplices"]
+    _simplex_inds: jtFloat[jax.Array, "num_simplices"]
     _vector_to_simplices_map: BaseVectorToSimplicesMap
     _simplex_tensor: BaseSimplexTensor
 
@@ -244,8 +251,8 @@ class TensorField(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
     def assemble_field(
-        self, parameter_vector: Float[jax.Array | npt.NDArray, "num_parameters_global"]
-    ) -> Float[jax.Array, "num_simplex dim dim"]:
+        self, parameter_vector: jtFloat[jax.Array | npt.NDArray, "num_parameters_global"]
+    ) -> jtFloat[jax.Array, "num_simplex dim dim"]:
         """Assemble global tensor field from global parameter vector.
 
         This method simply chains calls to the vector-to-simplices map and the simplex tensor
@@ -270,9 +277,11 @@ class TensorField(eqx.Module):
         self,
         number_of_vertices: int,
         derivative_solution_tensor: tuple[
-            Int[jax.Array, "num_values"], Int[jax.Array, "num_values"], Float[jax.Array, "num_values dim dim"]
+            jtInt[jax.Array, "num_values"],
+            jtInt[jax.Array, "num_values"],
+            jtFloat[jax.Array, "num_values dim dim"],
         ],
-        parameter_vector: Float[jax.Array | npt.NDArray, "num_parameters_global"],
+        parameter_vector: jtFloat[jax.Array | npt.NDArray, "num_parameters_global"],
     ) -> sp.sparse.coo_matrix:
         """Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
 
@@ -326,10 +335,10 @@ class TensorField(eqx.Module):
     @eqx.filter_jit
     def _assemble_jacobian(
         self,
-        simplex_inds: Float[jax.Array, "num_values"],
-        derivative_solution_tensor_values: Float[jax.Array, "num_values"],
-        parameter_vector: Float[jax.Array, "num_parameters_global"],
-    ) -> tuple[Float[jax.Array, "..."], Int[jax.Array, "..."]]:
+        simplex_inds: jtFloat[jax.Array, "num_values"],
+        derivative_solution_tensor_values: jtFloat[jax.Array, "num_values"],
+        parameter_vector: jtFloat[jax.Array, "num_parameters_global"],
+    ) -> tuple[jtFloat[jax.Array, "..."], jtInt[jax.Array, "..."]]:
         """Compute the partial derivative of the the tensor field w.r.t. to global parameter vector.
 
         Simplex-level derivatives are computed for all provided `simplex_inds' to match the

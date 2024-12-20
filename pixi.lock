@@ -865,7 +865,7 @@ packages:
 - pypi: .
   name: eikonax
   version: 0.1.0
-  sha256: 166342b158093cb9cba1348a7b6044d3e5286caa720945fb6e4543a46935cf58
+  sha256: b01a9c7f03d44de0e090047be3eac2601aaabc61bcaf607683ef8eaab94c6736
   requires_dist:
   - fim-python>=1.2.2,<2 ; extra == 'development'
   requires_python: '>=3.12'

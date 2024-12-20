@@ -7,7 +7,9 @@ import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy.typing as npt
-from jaxtyping import Bool, Float, Int
+from jaxtyping import Bool as jtBool
+from jaxtyping import Float as jtFloat
+from jaxtyping import Int as jtInt
 
 from . import corefunctions, logging
 
@@ -51,9 +53,9 @@ class Solution:
         tolerance: Tolerance from last two iterates, or entire tolerance history
     """
 
-    values: Float[jax.Array, "num_vertices"]
+    values: jtFloat[jax.Array, "num_vertices"]
     num_iterations: int
-    tolerance: float | Float[jax.Array, "num_iterations-1"] | None = None
+    tolerance: float | jtFloat[jax.Array, "num_iterations-1"] | None = None
 
 
 # ==================================================================================================
@@ -75,8 +77,8 @@ class Solver(eqx.Module):
     """
 
     # Equinox modules are data classes, so specify attributes on class level
-    _vertices: Float[jax.Array, "num_vertices dim"]
-    _adjacency_data: Int[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
+    _vertices: jtFloat[jax.Array, "num_vertices dim"]
+    _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _loop_type: str
     _max_value: float
     _use_soft_update: bool
@@ -163,7 +165,7 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def run(
         self,
-        tensor_field: Float[jax.Array | npt.NDArray, "num_simplices dim dim"],
+        tensor_field: jtFloat[jax.Array | npt.NDArray, "num_simplices dim dim"],
     ) -> Solution:
         """Main interface for cunducting solver runs.
 
@@ -208,9 +210,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _run_jitted_for_loop(
         self,
-        initial_guess: Float[jax.Array, "num_vertices"],
-        tensor_field: Float[jax.Array, "num_vertices dim dim"],
-    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
+        initial_guess: jtFloat[jax.Array, "num_vertices"],
+        tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[jtFloat[jax.Array, "num_vertices"], int, float]:
         """Solver run with jitted for loop for iterations.
 
         The method constructs a JAX-type for loop with fixed number of iterations. For every
@@ -221,7 +223,7 @@ class Solver(eqx.Module):
             tensor_field (jnp.ndarray): Parameter field
 
         Returns:
-            tuple[jnp.ndarray, Int, Float]: Solution values, number of iterations, tolerance
+            tuple[jnp.ndarray, jtInt, jtFloat]: Solution values, number of iterations, tolerance
         """
 
         # JAX body for for loop, has to carry over all args
@@ -251,9 +253,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _run_jitted_while_loop(
         self,
-        initial_guess: Float[jax.Array, "num_vertices"],
-        tensor_field: Float[jax.Array, "num_vertices dim dim"],
-    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
+        initial_guess: jtFloat[jax.Array, "num_vertices"],
+        tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[jtFloat[jax.Array, "num_vertices"], int, float]:
         """Solver run with jitted while loop for iterations.
 
         The iterator is tolerance-based, terminating after a user-defined tolerance for the
@@ -268,7 +270,7 @@ class Solver(eqx.Module):
             ValueError: Checks that tolerance has been provided by the user
 
         Returns:
-            tuple[jnp.ndarray, Int, Float]: Solution values, number of iterations, tolerance
+            tuple[jnp.ndarray, jtInt, jtFloat]: Solution values, number of iterations, tolerance
         """
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
@@ -291,7 +293,7 @@ class Solver(eqx.Module):
             )
 
         # JAX termination condition for while loop
-        def cond_while(carry_args: tuple) -> Bool[jax.Array, ""]:
+        def cond_while(carry_args: tuple) -> jtBool[jax.Array, ""]:
             new_solution_vector, iteration_counter, tolerance, old_solution_vector, _ = carry_args
             tolerance = jnp.max(jnp.abs(new_solution_vector - old_solution_vector))
             return (tolerance > self._tolerance) & (iteration_counter < self._max_num_iterations)
@@ -315,9 +317,9 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _run_nonjitted_while_loop(
         self,
-        initial_guess: Float[jax.Array, "num_vertices"],
-        tensor_field: Float[jax.Array, "num_vertices dim dim"],
-    ) -> tuple[Float[jax.Array, "num_vertices"], int, float]:
+        initial_guess: jtFloat[jax.Array, "num_vertices"],
+        tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
+    ) -> tuple[jtFloat[jax.Array, "num_vertices"], int, float]:
         """Solver run with standard Python while loop for iterations.
 
         While being less performant, the Python while loop allows for logging of infos between
@@ -331,17 +333,17 @@ class Solver(eqx.Module):
 
         Raises:
             ValueError: Checks that tolerance has been provided by the user
-            ValueError: Checks that log Interval has been provided by the user
+            ValueError: Checks that log jtInterval has been provided by the user
             ValueError: Checks that logger object has been provided by the user
 
         Returns:
-            tuple[jnp.ndarray, Int, jnp.ndarray]: Solution values, number of iterations, tolerance
+            tuple[jnp.ndarray, jtInt, jnp.ndarray]: Solution values, number of iterations, tolerance
                 vector over all iterations
         """
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
         if self._log_interval is None:
-            raise ValueError("Log Interval must be provided for non-jitted while loop")
+            raise ValueError("Log jtInterval must be provided for non-jitted while loop")
         if self._logger is None:
             raise ValueError("Logger must be provided for non-jitted while loop")
 
@@ -365,7 +367,7 @@ class Solver(eqx.Module):
             old_solution_vector = new_solution_vector
             iteration_counter += 1
 
-            if (iteration_counter % self._log_Interval == 0) or (
+            if (iteration_counter % self._log_jtInterval == 0) or (
                 iteration_counter == self._max_num_iterations
             ):
                 current_time = time.time() - start_time
@@ -381,9 +383,9 @@ class Solver(eqx.Module):
     @eqx.filter_jit
     def _compute_global_update(
         self,
-        solution_vector: Float[jax.Array, "num_vertices"],
-        tensor_field: Float[jax.Array, "num_vertices dim dim"],
-    ) -> Float[jax.Array, "num_vertices"]:
+        solution_vector: jtFloat[jax.Array, "num_vertices"],
+        tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
+    ) -> jtFloat[jax.Array, "num_vertices"]:
         """Given a current state and tensor field, compute a new solution vector.
 
         This method is basically a vectorized call to the `_compute_vertex_update` method, evaluated
@@ -415,10 +417,10 @@ class Solver(eqx.Module):
     # ----------------------------------------------------------------------------------------------
     def _compute_vertex_update(
         self,
-        old_solution_vector: Float[jax.Array, "num_vertices"],
-        tensor_field: Float[jax.Array, "num_vertices dim dim"],
-        adjacency_data: Int[jax.Array, "max_num_adjacent_simplices 4"],
-    ) -> Float[jax.Array, ""]:
+        old_solution_vector: jtFloat[jax.Array, "num_vertices"],
+        tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
+        adjacency_data: jtInt[jax.Array, "max_num_adjacent_simplices 4"],
+    ) -> jtFloat[jax.Array, ""]:
         """Compute the update value for a single vertex.
 
         This method links to the main logic of the solver routine, based on functions in the
@@ -431,7 +433,7 @@ class Solver(eqx.Module):
                 for the current vertex
 
         Returns:
-            Float: Optimal update value for the current vertex
+            jtFloat: Optimal update value for the current vertex
         """
         vertex_update_candidates = corefunctions.compute_vertex_update_candidates(
             old_solution_vector,

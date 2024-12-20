@@ -50,16 +50,19 @@ line-length = 100
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
+  "COM812",
   "EM101",
   "EM102",
-  "TRY003",
-  "COM812",
-  "RET504",
-  "S101",
-  "PD008",
+  "FBT001",
+  "FBT003",
   "F722",
   "F821",
+  "PD008",
+  "PLR2004",
   "PT003",
+  "RET504",
+  "S101",
+  "TRY003",
 ]
 pydocstyle.convention = "google"
 

@@ -4,7 +4,8 @@ from collections.abc import Iterable
 
 import numpy as np
 import numpy.typing as npt
-from jaxtyping import Float, Int
+from jaxtyping import Float as jtFloat
+from jaxtyping import Int as jtInt
 from scipy.spatial import Delaunay
 
 
@@ -14,14 +15,16 @@ def create_test_mesh(
     mesh_bounds_y: Iterable[float, float],
     num_points_x: int,
     num_points_y: int,
-) -> tuple[Float[npt.NDArray, "num_vertices dim"], Int[npt.NDArray, "num_simplices 3"]]:
+) -> tuple[jtFloat[npt.NDArray, "num_vertices dim"], jtInt[npt.NDArray, "num_simplices 3"]]:
     """Create a simple test mesh with Scipy's Delauny functionality.
 
     This methods creates a imple square mesh with Delauny triangulation.
 
     Args:
-        mesh_bounds (tuple[float, float]): Mesh bounds for both directions
-        num_points (int): Number of vertices for both directions
+        mesh_bounds_x (tuple[float, float]): Mesh bounds for x-direction
+        mesh_bounds_y (tuple[float, float]): Mesh bounds for y-direction
+        num_points_x (int): Number of vertices for x-direction
+        num_points_y (int): Number of vertices for y-direction
 
     Raises:
         ValueError: Checks that mesh bounds have correct dimension
@@ -29,7 +32,7 @@ def create_test_mesh(
         ValueError: Checks that at least two mesh points are chosen
 
     Returns:
-        tuple[np.ndarray, np.ndarray]: Array of vertex coordinates and array of simplex indices
+        tuple[npt.NDArray, npt.NDArray]: Array of vertex coordinates and array of simplex indices
     """
     for mesh_bounds in (mesh_bounds_x, mesh_bounds_y):
         if len(mesh_bounds) != 2:
@@ -38,7 +41,8 @@ def create_test_mesh(
             )
         if mesh_bounds[0] >= mesh_bounds[1]:
             raise ValueError(
-                f"Lower domain bound ({mesh_bounds[0]}) must be less than upper bound ({mesh_bounds[1]})"
+                f"Lower domain bound ({mesh_bounds[0]}) must be less than upper bound"
+                f"({mesh_bounds[1]})"
             )
     for num_points in (num_points_x, num_points_y):
         if num_points < 2:
@@ -54,8 +58,8 @@ def create_test_mesh(
 
 # --------------------------------------------------------------------------------------------------
 def get_adjacent_vertex_data(
-    simplices: Int[npt.NDArray, "num_simplices 3"], num_vertices: int
-) -> Int[npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]:
+    simplices: jtInt[npt.NDArray, "num_simplices 3"], num_vertices: int
+) -> jtInt[npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]:
     """Preprocess mesh data for a vertex-centered evaluation.
 
     Standard mesh tools provide vertex coordinates and the vertex indices for each simplex.
@@ -63,11 +67,11 @@ def get_adjacent_vertex_data(
     simplices/vertices for each vertex. This method performs the necessary transformation.
 
     Args:
-        simplices (jnp.ndarray): Vertex indices for all simplices
+        simplices (npt.NDArray): Vertex indices for all simplices
         num_vertices (int): Number of vertices in  the mesh
 
     Returns:
-        jnp.ndarray: Array containing for each vertex the vertex and simplex indices of all
+        npt.NDArray: Array containing for each vertex the vertex and simplex indices of all
             adjacent simplices. Dimension is (num_vertices, max_num_adjacent_simplices, 4),
             where the 4 entries contain the index of an adjacent simplex and the associated
             vertices. To ensure homogeneous arrays, all vertices have the same (maximum) number
