@@ -1,6 +1,6 @@
 """_summary_."""
 
-from typing import Real
+from numbers import Real
 
 import chex
 import equinox as eqx
