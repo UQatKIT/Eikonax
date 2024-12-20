@@ -35,15 +35,15 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
         JAX (with vmap).
 
         Args:
-            simplex_ind (int): Index of the simplex under consideration
-            parameters (jnp.ndarray): Global parameter vector
+            simplex_ind (jax.Array): Index of the simplex under consideration
+            parameters (jax.Array): Global parameter vector
 
         Raises:
             NotImplementedError: ABC error indicating that the method needs to be implemented
                 in subclasses
 
         Returns:
-            int | jnp.ndarray: Relevant parameters for the simplex
+            jax.Array: Relevant parameters for the simplex
         """
         raise NotImplementedError
 
@@ -65,11 +65,11 @@ class LinearScalarMap(BaseVectorToSimplicesMap):
         """Return relevant parameters for a given simplex.
 
         Args:
-            simplex_ind (int): Index of the simplex under consideration
-            parameters (jnp.ndarray): Global parameter vector
+            simplex_ind (jax.Array): Index of the simplex under consideration
+            parameters (jax.Array): Global parameter vector
 
         Returns:
-            int: relevant parameter (only one)
+            jax.Array: relevant parameter (only one)
         """
         parameter = parameters[simplex_ind]
         return parameter
@@ -110,15 +110,15 @@ class BaseSimplexTensor(ABC, eqx.Module):
         The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
-            simplex_ind (int): Index of the simplex under consideration
-            parameters (float | jnp.ndarray): Parameters for the simplex
+            simplex_ind (jax.Array): Index of the simplex under consideration
+            parameters (jax.Array): Parameters for the simplex
 
         Raises:
             NotImplementedError: ABC error indicating that the method needs to be implemented
                 in subclasses
 
         Returns:
-            jnp.ndarray: Tensor field for the simplex under consideration
+            jax.Array: Tensor field for the simplex under consideration
         """
         raise NotImplementedError
 
@@ -135,15 +135,15 @@ class BaseSimplexTensor(ABC, eqx.Module):
         (with vmap).
 
         Args:
-            simplex_ind (int): Index of the simplex under consideration
-            parameters (float | jnp.ndarray): Parameters for the simplex
+            simplex_ind (jax.Array): Index of the simplex under consideration
+            parameters (jax.Array): Parameters for the simplex
 
         Raises:
             NotImplementedError: ABC error indicating that the method needs to be implemented
                 in subclasses
 
         Returns:
-            jnp.ndarray: Jacobian tensor for the simplex under consideration
+            jax.Array: Jacobian tensor for the simplex under consideration
         """
         raise NotImplementedError
 
@@ -168,11 +168,11 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
-            simplex_ind (int): Index of simplex under consideration (not used)
-            parameters (float): Parameter (scalar) for tensor assembly
+            simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            parameters (jax.Array): Parameter (scalar) for tensor assembly
 
         Returns:
-            jnp.ndarray: Tensor for the simplex
+            jax.Array: Tensor for the simplex
         """
         tensor = 1 / parameters * jnp.identity(self._dimension, dtype=jnp.float32)
         return tensor
@@ -185,11 +185,11 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
-            _simplex_ind (int): Index of simplex under consideration (not used)
-            parameters (float): Parameter (scalar) for tensor assembly (not used)
+            _simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            parameters (jax.Array): Parameter (scalar) for tensor assembly
 
         Returns:
-            jnp.ndarray: Jacobian tensor for the simplex under consideration
+            jax.Array: Jacobian tensor for the simplex under consideration
         """
         derivative = (
             -1
@@ -259,10 +259,10 @@ class TensorField(eqx.Module):
         objects, vectorized over all simplices.
 
         Args:
-            parameter_vector (jnp.ndarray): Global parameter vector
+            parameter_vector (jax.Array | npt.NDArray): Global parameter vector
 
         Returns:
-            jnp.ndarray: Global tensor field
+            jax.Array: Global tensor field
         """
         parameter_vector = jnp.array(parameter_vector, dtype=jnp.float32)
         simplex_map = jax.vmap(self._vector_to_simplices_map.map, in_axes=(0, None))
@@ -288,7 +288,7 @@ class TensorField(eqx.Module):
         The total derivative of the solution vector w.r.t. the global parameter vector is given by
         the chain rule of differentiation. The Eikonax Derivator component evaluates the derivative
         of the solution vector w.r.t. the tensor field, which is the output of this component.
-        the tensor field assemble the Jacobian tensor of the tensor field w.r.t. to the global
+        The tensor field assembles the Jacobian tensor of the tensor field w.r.t. to the global
         parameter vector, and chains it with the solution-tensor derivative in a vectorized form.
         All computations are done in a sparse matrix format.
         Consider given a solution-tensor derivative of G_1 of shape N x K x D x D, where N is the
@@ -302,14 +302,14 @@ class TensorField(eqx.Module):
 
         Args:
             number_of_vertices (int): Number of vertices in the mesh
-            derivative_solution_tensor (jnp.array): Solution-tensor derivative of shape
-                N x K x D x D. Provided as a tuple of row indices, simplex indices, and values,
-                already in sparsified format. The row indices are the indices of the relevant
-                vertices, and can be seen as one half of the index set of the resulting sparse
-                matrix. For each row index, the corresponding simplex index indicates the simplex
-                whose tensor values influence the solution at that vertex through by means of
-                the derivative.
-            parameter_vector (jnp.ndarray): Global parameter vector
+            derivative_solution_tensor (tuple[jax.Array, jax.Array, jax.Array]):
+                Solution-tensor derivative of shape N x K x D x D. Provided as a tuple of row
+                indices, simplex indices, and values, already in sparsified format. The row indices
+                are the indices of the relevant vertices, and can be seen as one half of the index
+                set of the resulting sparse matrix. For each row index, the corresponding simplex
+                index indicates the simplex whose tensor values influence the solution at that
+                vertex by means of the derivative.
+            parameter_vector (jax.Array): Global parameter vector
 
         Returns:
             sp.sparse.coo_matrix: Sparse derivative of the Eikonax solution vector w.r.t. the
@@ -345,9 +345,12 @@ class TensorField(eqx.Module):
         solution-tensor derivatives obtained from the Eikonax derivator.
 
         Args:
-            simplex_inds (jnp.array): Indices of simplices under consideration
-            derivative_solution_tensor_values (jnp.array): Solution-tensor derivative values
-            parameter_vector (jnp.ndarray): Global parameter vector
+            simplex_inds (jax.Array): Indices of simplices under consideration
+            derivative_solution_tensor_values (jax.Array): Solution-tensor derivative values
+            parameter_vector (jax.Array): Global parameter vector
+
+        Returns:
+            tuple[jax.Array, jax.Array]: Values and column indices of the Jacobian
         """
         simplex_map = jax.vmap(self._vector_to_simplices_map.map, in_axes=(0, None))
         field_derivative = jax.vmap(self._simplex_tensor.derivative, in_axes=(0, 0))

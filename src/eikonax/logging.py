@@ -1,5 +1,7 @@
 """_summary_."""
 
+from numbers import Real
+
 import logging
 import sys
 from collections.abc import Iterable
@@ -13,8 +15,8 @@ class LoggerSettings:
     """Logger Settings.
 
     Args:
-        log_to_console: If True, log messages will be printed to the console.
-        logfile_path: Path to the logfile. If None, no logfile will be generated
+        log_to_console (bool): If True, log messages will be printed to the console.
+        logfile_path (Path): Path to the logfile. If None, no logfile will be generated
     """
 
     log_to_console: bool
@@ -26,14 +28,14 @@ class LogValue:
     """Data class holding info to log.
 
     Args:
-        str_id: String identifier to be shown at the top of the log table
-        str_format: String format for the log value in log file and on consoles
-        value: Actual value to log
+        str_id (str): String identifier to be shown at the top of the log table
+        str_format (str): String format for the log value in log file and on consoles
+        value (Real): Actual value to log
     """
 
     str_id: str
     str_format: str
-    value: int | float | None = None
+    value: Real | None = None
 
 
 # ==================================================================================================

@@ -21,8 +21,8 @@ def create_test_mesh(
     This methods creates a imple square mesh with Delauny triangulation.
 
     Args:
-        mesh_bounds_x (tuple[float, float]): Mesh bounds for x-direction
-        mesh_bounds_y (tuple[float, float]): Mesh bounds for y-direction
+        mesh_bounds_x (Iterable[float, float]): Mesh bounds for x-direction
+        mesh_bounds_y (Iterable[float, float]): Mesh bounds for y-direction
         num_points_x (int): Number of vertices for x-direction
         num_points_y (int): Number of vertices for y-direction
 
