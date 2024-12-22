@@ -59,7 +59,7 @@ class Solution:
 
     values: jtFloat[jax.Array, "num_vertices"]
     num_iterations: int
-    tolerance: float | jtFloat[jax.Array, "num_iterations-1"] | None = None
+    tolerance: float | jtFloat[jax.Array, "..."] | None = None
 
 
 # ==================================================================================================
@@ -231,7 +231,7 @@ class Solver(eqx.Module):
         """
 
         # JAX body for for loop, has to carry over all args
-        def loop_body_for(_: int, carry_args: tuple) -> tuple:
+        def loop_body_for(_: jtInt[jax.Array, ""], carry_args: tuple) -> tuple:
             new_solution_vector, tolerance, old_solution_vector, tensor_field = carry_args
             old_solution_vector = new_solution_vector
             new_solution_vector = self._compute_global_update(old_solution_vector, tensor_field)
@@ -323,7 +323,7 @@ class Solver(eqx.Module):
         self,
         initial_guess: jtFloat[jax.Array, "num_vertices"],
         tensor_field: jtFloat[jax.Array, "num_vertices dim dim"],
-    ) -> tuple[jtFloat[jax.Array, "num_vertices"], int, float]:
+    ) -> tuple[jtFloat[jax.Array, "num_vertices"], int, jtFloat[jax.Array, "..."]]:
         """Solver run with standard Python while loop for iterations.
 
         While being less performant, the Python while loop allows for logging of infos between
@@ -337,7 +337,7 @@ class Solver(eqx.Module):
 
         Raises:
             ValueError: Checks that tolerance has been provided by the user
-            ValueError: Checks that log jtInterval has been provided by the user
+            ValueError: Checks that log interval has been provided by the user
             ValueError: Checks that logger object has been provided by the user
 
         Returns:
@@ -347,7 +347,7 @@ class Solver(eqx.Module):
         if self._tolerance is None:
             raise ValueError("Tolerance threshold must be provided for while loop")
         if self._log_interval is None:
-            raise ValueError("Log jtInterval must be provided for non-jitted while loop")
+            raise ValueError("Log interval must be provided for non-jitted while loop")
         if self._logger is None:
             raise ValueError("Logger must be provided for non-jitted while loop")
 
@@ -371,7 +371,7 @@ class Solver(eqx.Module):
             old_solution_vector = new_solution_vector
             iteration_counter += 1
 
-            if (iteration_counter % self._log_jtInterval == 0) or (
+            if (iteration_counter % self._log_interval == 0) or (
                 iteration_counter == self._max_num_iterations
             ):
                 current_time = time.time() - start_time

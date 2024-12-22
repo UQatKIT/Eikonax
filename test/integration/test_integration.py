@@ -1,9 +1,11 @@
+import copy
+
 import jax.numpy as jnp
 import numpy as np
 import pytest
 from fimpy.solver import create_fim_solver
 
-from eikonax import corefunctions, derivator, preprocessing, solver, tensorfield
+from eikonax import corefunctions, derivator, logging, preprocessing, solver, tensorfield
 
 pytestmark = pytest.mark.integration
 
@@ -24,6 +26,30 @@ def test_tensor_field_assemble(
 
 
 # ================================== Integration Tests for Solver ==================================
+@pytest.mark.slow
+def test_solver_loop_types(configurations_and_tensorfields_2D_uniform):
+    logger_data = logging.LoggerSettings(
+    log_to_console=False,
+    logfile_path=None,
+)
+    logger = logging.Logger(logger_data)
+    config, tensor_field = configurations_and_tensorfields_2D_uniform
+    *_, mesh_data, solver_data, initial_sites = config
+    solver_data_jitted_while = solver_data
+    solver_data_nonjitted_while = copy.deepcopy(solver_data)
+    solver_data_nonjitted_while.loop_type = "nonjitted_while"
+    solver_data_jitted_for = copy.deepcopy(solver_data)
+    solver_data_jitted_for.loop_type = "jitted_for"
+    eikonax_solver = solver.Solver(mesh_data, solver_data_jitted_while, initial_sites)
+    solution_jitted_while = eikonax_solver.run(np.linalg.inv(tensor_field))
+    eikonax_solver = solver.Solver(mesh_data, solver_data_nonjitted_while, initial_sites, logger)
+    solution_nonjitted_while = eikonax_solver.run(np.linalg.inv(tensor_field))
+    eikonax_solver = solver.Solver(mesh_data, solver_data_jitted_for, initial_sites)
+    solution_jitted_for = eikonax_solver.run(np.linalg.inv(tensor_field))
+    assert np.allclose(solution_jitted_while.values, solution_nonjitted_while.values)
+    assert np.allclose(solution_jitted_while.values, solution_jitted_for.values)
+
+# --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_solver_run_2D_uniform_tensorfield(configurations_and_tensorfields_2D_uniform):
     config, tensor_field = configurations_and_tensorfields_2D_uniform

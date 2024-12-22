@@ -43,7 +43,7 @@ def eikonax_solver_data(request):
         "use_soft_update": request.param,
         "softminmax_order": 20,
         "softminmax_cutoff": 1,
-        "log_interval": None,
+        "log_interval": 1,
     }
     return solver_data
 
