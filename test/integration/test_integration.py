@@ -94,3 +94,13 @@ def test_derivative_solver_constructor_viable():
 # --------------------------------------------------------------------------------------------------
 def test_derivative_solver_solve_viable():
     assert False
+
+# --------------------------------------------------------------------------------------------------
+@pytest.mark.slow
+def test_derivative_solver_vs_finite_differences():
+    assert False
+
+# --------------------------------------------------------------------------------------------------
+@pytest.mark.slow
+def test_derivative_solver_vs_fimjax():
+    assert False
