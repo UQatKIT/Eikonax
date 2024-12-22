@@ -28,13 +28,12 @@ def small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor():
         expected_tensor_field,
         expected_field_derivative,
     )
-    object_types = (tensorfield.LinearScalarMap, tensorfield.LinearScalarSimplexTensor)
 
-    return data, object_types
+    return data, tensorfield.LinearScalarMap, tensorfield.LinearScalarSimplexTensor
 
 
 # ================================ Setup for Forward Solver Runs ===================================
-@pytest.fixture(scope="module", params=[True, False])
+@pytest.fixture(scope="module", params=[True, False], ids=["soft_update", "no_soft_update"])
 def eikonax_solver_data(request):
     solver_data = {
         "tolerance": 1e-8,
@@ -50,7 +49,7 @@ def eikonax_solver_data(request):
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="module", params=[10, 100])
+@pytest.fixture(scope="module", params=[10, 100], ids=["small_mesh", "large_mesh"])
 def meshes_for_2D_forward_evaluation(request):
     mesh_bounds_x = (0, 1)
     mesh_bounds_y = (0, 1)
@@ -78,7 +77,6 @@ def configurations_for_2D_forward_evaluation(meshes_for_2D_forward_evaluation, e
     mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
     solver_data = solver.SolverData(**eikonax_solver_data)
     return simplices, vertices, mesh_data, solver_data, initial_sites
-
 
 
 # --------------------------------------------------------------------------------------------------
@@ -119,7 +117,7 @@ def configurations_and_tensorfields_2D_function(configurations_for_2D_forward_ev
 # ============================== Setup for Paramettric Derivatives =================================
 @pytest.fixture(scope="module")
 def mesh_and_tensorfield_for_analytical_derivative_check(mesh_small):
-    vertices, simplices = mesh_small
+    vertices, simplices, _ = mesh_small
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
     return vertices, simplices, tensor_field
 
@@ -127,12 +125,12 @@ def mesh_and_tensorfield_for_analytical_derivative_check(mesh_small):
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
 def setup_analytical_partial_derivative_tests(
-    small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor,
+    mesh_and_tensorfield_for_analytical_derivative_check,
 ):
     derivator_data = {"softmin_order": 20, "softminmax_order": 20, "softminmax_cutoff": 1}
     initial_sites = {"inds": (0,), "values": (0,)}
     input_data = (
-        *small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor,
+        *mesh_and_tensorfield_for_analytical_derivative_check,
         initial_sites,
         derivator_data,
     )

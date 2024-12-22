@@ -27,7 +27,7 @@ def test_get_adjacent_vertex_data(mesh_and_adjacency_data_small):
 
 
 # ================================== Unit Tests for Core Functions =================================
-@pytest.mark.parametrize("order", [1, 10])
+@pytest.mark.parametrize("order", [1, 10], ids=["order_1", "order_10"])
 @pytest.mark.parametrize(
     "input_values, expected_output",
     [(jnp.array((2.57,)), 2.57), (jnp.array((2, 2, jnp.inf)), 2)],
@@ -39,7 +39,7 @@ def test_compute_softmin(input_values, expected_output, order):
 
 
 # --------------------------------------------------------------------------------------------------
-@pytest.mark.parametrize("order", [1, 10, 1000])
+@pytest.mark.parametrize("order", [1, 10, 1000], ids=["order_1", "order_10", "order_1000"])
 @pytest.mark.parametrize(
     "input_value",
     [
@@ -145,9 +145,7 @@ def test_compute_optimal_update_parameters_soft(
 
 # --------------------------------------------------------------------------------------------------
 def test_compute_fixed_update(simplex_setup_and_update):
-    *input_data, expected_update_value = (
-        simplex_setup_and_update
-    )
+    *input_data, expected_update_value = simplex_setup_and_update
     update_value = corefunctions.compute_fixed_update(*input_data)
     assert jnp.allclose(update_value, expected_update_value)
 

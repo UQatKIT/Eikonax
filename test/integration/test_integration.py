@@ -12,9 +12,10 @@ pytestmark = pytest.mark.integration
 def test_tensor_field_assemble(
     small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor,
 ):
-    data, object_types = small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor
+    data, MapObject, SimplexObject = (
+        small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor
+    )
     dimension, num_simplices, parameter_vector, expected_tensor_field, _ = data
-    MapObject, SimplexObject = object_types
     map_object = MapObject()
     simplex_object = SimplexObject(dimension)
     tensorfield_object = tensorfield.TensorField(num_simplices, map_object, simplex_object)
@@ -87,9 +88,9 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_derivative_solver_constructor_viable():
-    assert True
+    assert False
 
 
 # --------------------------------------------------------------------------------------------------
 def test_derivative_solver_solve_viable():
-    assert True
+    assert False
