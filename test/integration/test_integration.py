@@ -5,7 +5,15 @@ import numpy as np
 import pytest
 from fimpy.solver import create_fim_solver
 
-from eikonax import corefunctions, derivator, logging, preprocessing, solver, tensorfield
+from eikonax import (
+    corefunctions,
+    derivator,
+    finite_diff,
+    logging,
+    preprocessing,
+    solver,
+    tensorfield,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -114,22 +122,60 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_derivative_solver_constructor_viable():
-    assert False
+def test_derivative_solver_constructor_viable(setup_derivative_solve_checks):
+    _, solution_vector, _, _, derivative_solver, _ = setup_derivative_solve_checks
+    system_matrix = derivative_solver.sparse_system_matrix.toarray()
+    permutation_matrix = derivative_solver.sparse_permutation_matrix.toarray()
+    assert system_matrix.shape == (solution_vector.size, solution_vector.size)
+    assert permutation_matrix.shape == (solution_vector.size, solution_vector.size)
+    assert np.allclose(system_matrix, np.triu(system_matrix))
+    assert np.allclose(permutation_matrix @ permutation_matrix.T, np.identity(solution_vector.size))
 
 
-# --------------------------------------------------------------------------------------------------
-def test_derivative_solver_solve_viable():
-    assert False
+@pytest.mark.slow
+def test_partial_derivative_parameter_viable(setup_derivative_solve_checks):
+    parameter_vector, solution_vector, _, _, _, partial_derivative_parameter = (
+        setup_derivative_solve_checks
+    )
+    assert partial_derivative_parameter.shape == (
+        solution_vector.size,
+        parameter_vector.size,
+    )
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_derivative_solver_vs_finite_differences():
-    assert False
+def test_derivative_solver_solve_viable(setup_derivative_solve_checks):
+    parameter_vector, solution_vector, _, _, derivative_solver, partial_derivative_parameter = (
+        setup_derivative_solve_checks
+    )
+    rhs_adjoint = np.ones(solution_vector.size)
+    adjoint = derivative_solver.solve(rhs_adjoint)
+    gradient = partial_derivative_parameter.T @ adjoint
+    assert gradient.size == parameter_vector.size
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_derivative_solver_vs_fimjax():
-    assert False
+def test_derivative_solver_vs_finite_differences(setup_derivative_solve_checks):
+    (
+        parameter_vector,
+        _,
+        tensor_field,
+        eikonal_solver,
+        derivative_solver,
+        partial_derivative_parameter,
+    ) = setup_derivative_solve_checks
+    eikonax_jacobian = derivator.compute_eikonax_jacobian(
+        derivative_solver, partial_derivative_parameter
+    )
+    finite_diff_jacobian = finite_diff.compute_fd_jacobian(
+        eikonax_solver=eikonal_solver,
+        tensor_field=tensor_field,
+        stencil=finite_diff.finite_diff_1_forward,
+        eval_point=parameter_vector,
+        step_width=1e-3,
+    )
+    error = np.linalg.norm(finite_diff_jacobian - eikonax_jacobian)
+    assert error < 2e-3
+

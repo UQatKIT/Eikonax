@@ -155,7 +155,7 @@ def compute_optimal_update_parameters_soft(
     parameter_tensor: jtFloat[jax.Array, "dim dim"],
     edges: tuple[jtFloat[jax.Array, "dim"], jtFloat[jax.Array, "dim"], jtFloat[jax.Array, "dim"]],
     softminmax_order: int,
-    softminmax_cutoff: float,
+    softminmax_cutoff: Real,
 ) -> jtFloat[jax.Array, "4"]:
     """Compute position parameter for update of a node within a specific triangle.
 

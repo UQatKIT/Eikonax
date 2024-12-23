@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 from scipy.spatial import Delaunay
 
-from eikonax import corefunctions, preprocessing, solver, tensorfield
+from eikonax import corefunctions, derivator, preprocessing, solver, tensorfield
 
 
 # ================================= Setup for Tensor Field Check ===================================
@@ -116,17 +116,11 @@ def configurations_and_tensorfields_2D_function(configurations_for_2D_forward_ev
 
 # ============================== Setup for Paramettric Derivatives =================================
 @pytest.fixture(scope="module")
-def mesh_and_tensorfield_for_analytical_derivative_check(mesh_small):
+def setup_analytical_partial_derivative_tests(
+    mesh_small,
+):
     vertices, simplices, _ = mesh_small
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
-    return vertices, simplices, tensor_field
-
-
-# --------------------------------------------------------------------------------------------------
-@pytest.fixture(scope="module")
-def setup_analytical_partial_derivative_tests(
-    mesh_and_tensorfield_for_analytical_derivative_check,
-):
     derivator_data = {
         "use_soft_update": True,
         "softmin_order": 20,
@@ -134,11 +128,7 @@ def setup_analytical_partial_derivative_tests(
         "softminmax_cutoff": 1,
     }
     initial_sites = {"inds": (0,), "values": (0,)}
-    input_data = (
-        *mesh_and_tensorfield_for_analytical_derivative_check,
-        initial_sites,
-        derivator_data,
-    )
+    input_data = (vertices, simplices, tensor_field, initial_sites, derivator_data)
     fwd_solution = jnp.array(
         (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
@@ -178,8 +168,54 @@ def setup_analytical_partial_derivative_tests(
     return input_data, fwd_solution, expected_partial_derivatives
 
 
+# --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def mesh_and_tensorfield_for_derivative_solve_checks(mesh_small):
+def setup_derivative_solve_checks(mesh_small):
+    solver_data = solver.SolverData(
+        tolerance=1e-8,
+        max_num_iterations=1000,
+        loop_type="jitted_while",
+        max_value=1000,
+        use_soft_update=False,
+        softminmax_order=20,
+        softminmax_cutoff=1,
+        log_interval=1,
+    )
+    derivator_data = derivator.PartialDerivatorData(
+        use_soft_update=True,
+        softmin_order=20,
+        softminmax_order=20,
+        softminmax_cutoff=1,
+    )
     vertices, simplices, _ = mesh_small
-    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
-    return vertices, simplices, tensor_field
+    adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
+    mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+    rng = np.random.default_rng(seed=0)
+    parameter_vector = rng.uniform(0.5, 1.5, simplices.shape[0])
+    parameter_vector = jnp.array(parameter_vector)
+    tensor_on_simplex = tensorfield.InvLinearScalarSimplexTensor(vertices.shape[1])
+    tensor_field_mapping = tensorfield.LinearScalarMap()
+    tensor_field = tensorfield.TensorField(
+        simplices.shape[0], tensor_field_mapping, tensor_on_simplex
+    )
+    parameter_field = tensor_field.assemble_field(parameter_vector)
+    eikonal_solver = solver.Solver(mesh_data, solver_data, initial_sites)
+    solution = eikonal_solver.run(parameter_field)
+    eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
+    sparse_partial_solution, sparse_partial_tensor = eikonax_derivator.compute_partial_derivatives(
+        solution.values, parameter_field
+    )
+    derivative_solver = derivator.DerivativeSolver(solution.values, sparse_partial_solution)
+    partial_derivative_parameter = tensor_field.assemble_jacobian(
+        solution.values.size, sparse_partial_tensor, parameter_vector
+    )
+
+    return (
+        parameter_vector,
+        solution.values,
+        tensor_field,
+        eikonal_solver,
+        derivative_solver,
+        partial_derivative_parameter,
+    )
