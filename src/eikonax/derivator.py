@@ -28,6 +28,7 @@ class PartialDerivatorData:
             sensitivity is assumed.
     """
 
+    use_soft_update: bool
     softmin_order: int
     softminmax_order: int
     softminmax_cutoff: Real
@@ -47,6 +48,7 @@ class PartialDerivator(eqx.Module):
     _vertices: jtFloat[jax.Array, "num_vertices dim"]
     _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _initial_sites: corefunctions.InitialSites
+    _use_soft_update: bool
     _softmin_order: int
     _softminmax_order: int
     _softminmax_cutoff: int
@@ -69,6 +71,7 @@ class PartialDerivator(eqx.Module):
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._initial_sites = initial_sites
+        self._use_soft_update = derivator_data.use_soft_update
         self._softmin_order = derivator_data.softmin_order
         self._softminmax_order = derivator_data.softminmax_order
         self._softminmax_cutoff = derivator_data.softminmax_cutoff
@@ -288,7 +291,7 @@ class PartialDerivator(eqx.Module):
             tensor_field,
             adjacency_data,
             self._vertices,
-            True,
+            self._use_soft_update,
             self._softminmax_order,
             self._softminmax_cutoff,
         )
@@ -393,13 +396,18 @@ class PartialDerivator(eqx.Module):
         solution_values = jnp.array((solution_vector[j], solution_vector[k]))
         edges = corefunctions.compute_edges(i, j, k, self._vertices)
         parameter_tensor = tensor_field[s]
-        lambda_array = corefunctions.compute_optimal_update_parameters_soft(
-            solution_values,
-            parameter_tensor,
-            edges,
-            self._softminmax_order,
-            self._softminmax_cutoff,
-        )
+        if self._use_soft_update:
+            lambda_array = corefunctions.compute_optimal_update_parameters_soft(
+                solution_values,
+                parameter_tensor,
+                edges,
+                self._softminmax_order,
+                self._softminmax_cutoff,
+            )
+        else:
+            lambda_array = corefunctions.compute_optimal_update_parameters_hard(
+                solution_values, parameter_tensor, edges
+            )
         lambda_partial_solution, lambda_partial_parameter = self._compute_lambda_grad(
             solution_values, parameter_tensor, edges
         )
@@ -496,20 +504,28 @@ class PartialDerivator(eqx.Module):
             tuple[jax.Array, jax.Array]: Jacobians of the update parameters w.r.t.
                 the solution vector and the parameter tensor
         """
-        lambda_partial_solution = corefunctions.jac_lambda_soft_solution(
-            solution_values,
-            parameter_tensor,
-            edges,
-            self._softminmax_order,
-            self._softminmax_cutoff,
-        )
-        lambda_partial_parameter = corefunctions.jac_lambda_soft_parameter(
-            solution_values,
-            parameter_tensor,
-            edges,
-            self._softminmax_order,
-            self._softminmax_cutoff,
-        )
+        if self._use_soft_update:
+            lambda_partial_solution = corefunctions.jac_lambda_soft_solution(
+                solution_values,
+                parameter_tensor,
+                edges,
+                self._softminmax_order,
+                self._softminmax_cutoff,
+            )
+            lambda_partial_parameter = corefunctions.jac_lambda_soft_parameter(
+                solution_values,
+                parameter_tensor,
+                edges,
+                self._softminmax_order,
+                self._softminmax_cutoff,
+            )
+        else:
+            lambda_partial_solution = corefunctions.jac_lambda_hard_solution(
+                solution_values, parameter_tensor, edges
+            )
+            lambda_partial_parameter = corefunctions.jac_lambda_hard_parameter(
+                solution_values, parameter_tensor, edges
+            )
 
         return lambda_partial_solution, lambda_partial_parameter
 
@@ -669,3 +685,35 @@ class DerivativeSolver:
         )
 
         return sparse_system_matrix
+
+    # ----------------------------------------------------------------------------------------------
+    @property
+    def sparse_system_matrix(self):
+        return self._sparse_system_matrix
+
+    # ----------------------------------------------------------------------------------------------
+    @property
+    def sparse_permutation_matrix(self):
+        return self._sparse_permutation_matrix
+
+
+# ==================================================================================================
+def compute_eikonax_jacobian(
+    derivative_solver: DerivativeSolver, partial_derivative_parameter: sp.sparse.coo_matrix
+):
+    rhs_adjoint = np.zeros(derivative_solver.sparse_permutation_matrix.shape[0])
+    jacobian = []
+
+    for i, _ in enumerate(rhs_adjoint):
+        rhs_adjoint[i] = 1.0
+        adjoint = derivative_solver.solve(rhs_adjoint)
+        rhs_adjoint[i] = 0.0
+        jacobian_row = partial_derivative_parameter.T @ adjoint
+        jacobian.append(jacobian_row)
+    jacobian = np.vstack(jacobian)
+    return jacobian
+
+
+# --------------------------------------------------------------------------------------------------
+def compute_eikonax_hessian():
+    raise NotImplementedError

@@ -29,9 +29,9 @@ def test_tensor_field_assemble(
 @pytest.mark.slow
 def test_solver_loop_types(configurations_and_tensorfields_2D_uniform):
     logger_data = logging.LoggerSettings(
-    log_to_console=False,
-    logfile_path=None,
-)
+        log_to_console=False,
+        logfile_path=None,
+    )
     logger = logging.Logger(logger_data)
     config, tensor_field = configurations_and_tensorfields_2D_uniform
     *_, mesh_data, solver_data, initial_sites = config
@@ -48,6 +48,7 @@ def test_solver_loop_types(configurations_and_tensorfields_2D_uniform):
     solution_jitted_for = eikonax_solver.run(np.linalg.inv(tensor_field))
     assert np.allclose(solution_jitted_while.values, solution_nonjitted_while.values)
     assert np.allclose(solution_jitted_while.values, solution_jitted_for.values)
+
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
@@ -121,10 +122,12 @@ def test_derivative_solver_constructor_viable():
 def test_derivative_solver_solve_viable():
     assert False
 
+
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_derivative_solver_vs_finite_differences():
     assert False
+
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow

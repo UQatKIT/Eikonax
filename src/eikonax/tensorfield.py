@@ -174,6 +174,53 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         Returns:
             jax.Array: Tensor for the simplex
         """
+        tensor = parameters * jnp.identity(self._dimension, dtype=jnp.float32)
+        return tensor
+
+    def derivative(
+        self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
+    ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
+        """Parametric derivative of the `assemble` method.
+
+        The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
+
+        Args:
+            _simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            parameters (jax.Array): Parameter (scalar) for tensor assembly
+
+        Returns:
+            jax.Array: Jacobian tensor for the simplex under consideration
+        """
+        derivative = jnp.expand_dims(jnp.identity(self._dimension, dtype=jnp.float32), axis=-1)
+        return derivative
+
+
+# --------------------------------------------------------------------------------------------------
+class InvLinearScalarSimplexTensor(BaseSimplexTensor):
+    """SimplexTensor implementation relying on one parameter per simplex.
+
+    The simplex tensor is assembled as 1/parameter * Identity for each simplex.
+
+    Methods:
+        assemble: Assemble the tensor field for a parameter vector
+        derivative: Parametric derivative of the `assemble` method
+    """
+
+    def assemble(
+        self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
+    ) -> jtFloat[jax.Array, "dim dim"]:
+        """Assemble tensor for given simplex as 1/parameter*Identity.
+
+        the `parameters` argument is a scalar here, and `_simplex_ind` is not used. The method needs
+        to be broadcastable over `simplex_ind` by JAX (with vmap).
+
+        Args:
+            simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            parameters (jax.Array): Parameter (scalar) for tensor assembly
+
+        Returns:
+            jax.Array: Tensor for the simplex
+        """
         tensor = 1 / parameters * jnp.identity(self._dimension, dtype=jnp.float32)
         return tensor
 

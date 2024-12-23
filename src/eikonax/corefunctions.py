@@ -155,7 +155,7 @@ def compute_optimal_update_parameters_soft(
     parameter_tensor: jtFloat[jax.Array, "dim dim"],
     edges: tuple[jtFloat[jax.Array, "dim"], jtFloat[jax.Array, "dim"], jtFloat[jax.Array, "dim"]],
     softminmax_order: int,
-    softminmax_cutoff: int,
+    softminmax_cutoff: float,
 ) -> jtFloat[jax.Array, "4"]:
     """Compute position parameter for update of a node within a specific triangle.
 
@@ -431,8 +431,10 @@ grad_update_parameter = jax.grad(compute_fixed_update, argnums=1)
 grad_update_lambda = jax.grad(compute_fixed_update, argnums=2)
 # Derivative of update parameter function w.r.t. current solution values, 2x2
 jac_lambda_soft_solution = jax.jacobian(compute_optimal_update_parameters_soft, argnums=0)
+jac_lambda_hard_solution = jax.jacobian(compute_optimal_update_parameters_hard, argnums=0)
 # Derivative of update parameter function w.r.t. parameter tensor, 2xDxD
 jac_lambda_soft_parameter = jax.jacobian(compute_optimal_update_parameters_soft, argnums=1)
+jac_lambda_hard_parameter = jax.jacobian(compute_optimal_update_parameters_hard, argnums=1)
 
 
 # --------------------------------------------------------------------------------------------------

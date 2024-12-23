@@ -29,7 +29,7 @@ def small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor():
         expected_field_derivative,
     )
 
-    return data, tensorfield.LinearScalarMap, tensorfield.LinearScalarSimplexTensor
+    return data, tensorfield.LinearScalarMap, tensorfield.InvLinearScalarSimplexTensor
 
 
 # ================================ Setup for Forward Solver Runs ===================================
@@ -127,7 +127,12 @@ def mesh_and_tensorfield_for_analytical_derivative_check(mesh_small):
 def setup_analytical_partial_derivative_tests(
     mesh_and_tensorfield_for_analytical_derivative_check,
 ):
-    derivator_data = {"softmin_order": 20, "softminmax_order": 20, "softminmax_cutoff": 1}
+    derivator_data = {
+        "use_soft_update": True,
+        "softmin_order": 20,
+        "softminmax_order": 20,
+        "softminmax_cutoff": 1,
+    }
     initial_sites = {"inds": (0,), "values": (0,)}
     input_data = (
         *mesh_and_tensorfield_for_analytical_derivative_check,
@@ -171,3 +176,10 @@ def setup_analytical_partial_derivative_tests(
     )
 
     return input_data, fwd_solution, expected_partial_derivatives
+
+
+@pytest.fixture(scope="module")
+def mesh_and_tensorfield_for_derivative_solve_checks(mesh_small):
+    vertices, simplices, _ = mesh_small
+    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    return vertices, simplices, tensor_field
