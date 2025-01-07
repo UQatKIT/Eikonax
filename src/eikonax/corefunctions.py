@@ -1,7 +1,30 @@
-"""_summary_.
+"""Core functions for Eikonax forward solves and parametric derivatives.
 
-Returns:
-    _type_: _description_
+This module contains atomic functions that make up the Eikonax solver routines. They (and their
+automatic derivatives from JAX) are further used to evaluate parametric derivatives.
+
+Classes:
+    MeshData: Data characterizing a computational mesh from a vertex-centered perspective.
+    InitialSites: Initial site info.
+
+Functions:
+    compute_softmin: Numerically stable computation of the softmin function based on the Boltzmann
+        operator.
+    compute_softminmax: Smooth double ReLU-type approximation that restricts a variable to the
+        interval [0, 1].
+    compute_edges: Compute the edged of a triangle from vertex indices and coordinates.
+    compute_optimal_update_parameters_soft: Compute position parameter for update of a node within a
+        specific triangle.
+    compute_optimal_update_parameters_hard: Compute position parameter for update of a node within a
+        specific triangle.
+    _compute_optimal_update_parameters: Compute the optimal update parameter for the solution of the
+        Eikonal equation.
+    compute_fixed_update: Compute update for a given vertex, triangle, and update parameter.
+    compute_update_candidates_from_adjacent_simplex: Compute all possible update candidates from an
+        adjacent triangle.
+    compute_vertex_update_candidates: Compute all update candidates for a given vertex.
+    grad_softmin: The gradient of the softmin function requires further masking of infeasible
+        values.
 """
 
 from collections.abc import Iterable

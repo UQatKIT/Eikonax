@@ -1,4 +1,12 @@
-"""_summary_."""
+"""Test mesh creation and preparation for Eikonax solver runs.
+
+The creation of test meshes can be done with any other tools. THe format of the required adjacency
+data for Eikonax is strict, however.
+
+Functions:
+    create_test_mesh: Create a simple test mesh with Scipy's Delauny functionality.
+    get_adjacent_vertex_data: Preprocess mesh data for a vertex-centered evaluation.
+"""
 
 from collections.abc import Iterable
 from typing import Annotated

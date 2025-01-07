@@ -1,6 +1,20 @@
-import copy
+"""Finite difference approximation of parametric derivatives.
+
+Finite difference approximations are typically computationally expensive and inaccurate. They should
+only be used for comparison in small test cases.
+
+Functions:
+    finite_diff_1_forward: Forward finite difference approximation of a first order derivative
+    finite_diff_1_backward: Backward finite difference approximation of a first order derivative
+    finite_diff_1_central: Central finite difference approximation of a first order derivative
+    finite_diff_2: Implement second order finite differences
+    compute_fd_jacobian: Compute the Jacobian of the Eikonal equation w.r.t. to parameter with
+        finite differences
+"""
+
 from collections.abc import Callable
 from functools import partial
+from numbers import Real
 
 import jax
 import numpy as np
@@ -12,8 +26,25 @@ from eikonax import solver, tensorfield
 
 # ==================================================================================================
 def finite_diff_1_forward(
-    func: Callable, eval_point: jtReal[npt.NDArray, "M"], step_width: float, index: int
-):
+    func: Callable[[jtReal[npt.NDArray, "M"]], jtReal[npt.NDArray, "M"]],
+    eval_point: jtReal[npt.NDArray, "M"],
+    step_width: Real,
+    index: int,
+) -> jtReal[npt.NDArray, "N"]:
+    """Forward finite difference approximation of a first order derivative.
+
+    The function evaluates the partial derivative of the function `func` at the point `eval_point`
+    for the index `index`.
+
+    Args:
+        func (Callable): Callable to use for FD computation
+        eval_point (npt.NDArray): Parameter value at which to approximate the derivative
+        step_width (Real): Step width of the finite difference
+        index (int): Vector component for which to compute partial derivative
+
+    Returns:
+        npt.NDArray: Partial derivative approximation
+    """
     unperturbed_eval = func(eval_point)
     eval_point[index] += step_width
     fwd_perturbed_eval = func(eval_point)
@@ -24,8 +55,25 @@ def finite_diff_1_forward(
 
 # --------------------------------------------------------------------------------------------------
 def finite_diff_1_backward(
-    func: Callable, eval_point: jtReal[npt.NDArray, "M"], step_width: float, index: int
-):
+    func: Callable[[jtReal[npt.NDArray, "M"]], jtReal[npt.NDArray, "M"]],
+    eval_point: jtReal[npt.NDArray, "M"],
+    step_width: float,
+    index: int,
+) -> jtReal[npt.NDArray, "N"]:
+    """Backward finite difference approximation of a first order derivative.
+
+    The function evaluates the partial derivative of the function `func` at the point `eval_point`
+    for the index `index`.
+
+    Args:
+        func (Callable): Callable to use for FD computation
+        eval_point (npt.NDArray): Parameter value at which to approximate the derivative
+        step_width (Real): Step width of the finite difference
+        index (int): Vector component for which to compute partial derivative
+
+    Returns:
+        npt.NDArray: Partial derivative approximation
+    """
     unperturbed_eval = func(eval_point)
     eval_point[index] -= step_width
     bwd_perturbed_eval = func(eval_point)
@@ -36,8 +84,25 @@ def finite_diff_1_backward(
 
 # --------------------------------------------------------------------------------------------------
 def finite_diff_1_central(
-    func: Callable, eval_point: jtReal[npt.NDArray, "M"], step_width: float, index: int
-):
+    func: Callable[[jtReal[npt.NDArray, "M"]], jtReal[npt.NDArray, "M"]],
+    eval_point: jtReal[npt.NDArray, "M"],
+    step_width: float,
+    index: int,
+) -> jtReal[npt.NDArray, "N"]:
+    """Central finite difference approximation of a first order derivative.
+
+    The function evaluates the partial derivative of the function `func` at the point `eval_point`
+    for the index `index`.
+
+    Args:
+        func (Callable): Callable to use for FD computation
+        eval_point (npt.NDArray): Parameter value at which to approximate the derivative
+        step_width (Real): Step width of the finite difference
+        index (int): Vector component for which to compute partial derivative
+
+    Returns:
+        npt.NDArray: Partial derivative approximation
+    """
     eval_point[index] += step_width
     fwd_perturbed_eval = func(eval_point)
     eval_point[index] -= 2 * step_width
@@ -49,47 +114,32 @@ def finite_diff_1_central(
 
 # --------------------------------------------------------------------------------------------------
 def finite_diff_2(
-    func: Callable,
+    func: Callable[[jtReal[npt.NDArray, "M"]], jtReal[npt.NDArray, "M"]],
     eval_point: jtReal[npt.NDArray, "M"],
     step_width: float,
     index_1: int,
     index_2: int,
-):
+) -> None:
+    """Implement second order finite differences."""
     raise NotImplementedError
-    if index_1 == index_2:
-        fwd_eval_point = eval_point.copy(eval_point)
-        fwd_eval_point[index_1] += step_width
-        bwd_eval_point = eval_point.copy(eval_point)
-        bwd_eval_point[index_1] -= step_width
-        fwd_eval = func(fwd_eval_point)
-        bwd_eval = func(bwd_eval_point)
-        unperturbed_eval = func(eval_point)
-        finite_diff = (fwd_eval - 2 * unperturbed_eval + bwd_eval) / (step_width**2)
-    else:
-        fwd_fwd_eval_point = eval_point.copy(eval_point)
-        fwd_fwd_eval_point[index_1] += step_width
-        fwd_fwd_eval_point[index_2] += step_width
-        bwd_bwd_eval_point = eval_point.copy(eval_point)
-        bwd_bwd_eval_point[index_1] -= step_width
-        bwd_bwd_eval_point[index_2] -= step_width
-        fwd_bwd_eval_point = eval_point.copy(eval_point)
-        fwd_bwd_eval_point[index_1] += step_width
-        fwd_bwd_eval_point[index_2] -= step_width
-        bwd_fwd_eval_point = eval_point.copy(eval_point)
-        bwd_fwd_eval_point[index_1] -= step_width
-        bwd_fwd_eval_point[index_2] += step_width
-        fwd_fwd_eval = func(fwd_fwd_eval_point)
-        fwd_bwd_eval = func(fwd_bwd_eval_point)
-        bwd_fwd_eval = func(bwd_fwd_eval_point)
-        bwd_bwd_eval = func(bwd_bwd_eval_point)
-        finite_diff = (fwd_fwd_eval - fwd_bwd_eval - bwd_fwd_eval + bwd_bwd_eval) / (
-            4 * step_width**2
-        )
-    return finite_diff
 
 
 # ==================================================================================================
-def run_eikonax_with_tensorfield(parameter_vector, eikonax_solver, tensor_field):
+def run_eikonax_with_tensorfield(
+    parameter_vector: jtReal[npt.NDArray, "M"],
+    eikonax_solver: solver.Solver,
+    tensor_field: tensorfield.TensorField,
+) -> jtReal[npt.NDArray, "N"]:
+    """Wrapper function for Eikonax runs.
+
+    Args:
+        parameter_vector (npt.NDArray): Parameter vector at which to compute eikonal solution
+        eikonax_solver (solver.Solver): Initialized solver object
+        tensor_field (tensorfield.TensorField): Initialized tensor field object
+
+    Returns:
+        npt.NDArray: Solution of the Eikonal equation
+    """
     parameter_field = tensor_field.assemble_field(parameter_vector)
     solution = eikonax_solver.run(parameter_field)
     solution_values = np.array(solution.values)
@@ -103,7 +153,21 @@ def compute_fd_jacobian(
     stencil: Callable,
     eval_point: jtReal[npt.NDArray | jax.Array, "M"],
     step_width: float,
-):
+)-> jtReal[npt.NDArray, "N M"]:
+    """Compute the Jacobian of the Eikonal equation w.r.t. to parameter with finite differences.
+
+    WARNING: This method should only be used for small problems.
+
+    Args:
+        eikonax_solver (solver.Solver): Initialized solver object
+        tensor_field (tensorfield.TensorField): Initialized tensor field object
+        stencil (Callable): Finite difference stencil to use for computation
+        eval_point (npt.NDArray): Parameter vector at which to approximate derivative
+        step_width (float): Step with in FD stencil
+
+    Returns:
+        npt.NDArray: (Dense) Jacobian matrix
+    """
     eval_func = partial(
         run_eikonax_with_tensorfield, eikonax_solver=eikonax_solver, tensor_field=tensor_field
     )
@@ -122,16 +186,6 @@ def compute_fd_hessian(
     stencil: Callable,
     eval_point: jtReal[npt.NDArray | jax.Array, "M"],
     step_width: float,
-):
+) -> None:
+    """Implement finite difference Hessian computation."""
     raise NotImplementedError
-    eval_point = np.array(eval_point)
-    hessian = []
-    for i, _ in enumerate(eval_point):
-        subhessian = []
-        for j, _ in enumerate(eval_point):
-            hessian_entry = stencil(func, eval_point, step_width, i, j)
-            subhessian.append(hessian_entry)
-        subhessian = np.hstack(subhessian)
-        hessian.append(subhessian)
-    hessian = np.hstack(hessian)
-    return hessian

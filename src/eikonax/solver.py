@@ -1,4 +1,10 @@
-"""_summary_."""
+"""Eikonax forward solver.
+
+Classes:
+    SolverData: Settings for the initialization of the Eikonax Solver.
+    Solution: Eikonax solution object, returned by the solver.
+    Solver: Eikonax solver class.
+"""
 
 import time
 from dataclasses import dataclass

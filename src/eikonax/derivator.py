@@ -1,4 +1,15 @@
-"""_summary_."""
+"""Components for computing derivatives of the Eikonax solver.
+
+This module contains two main components. Firstly, the `PartialDerivator` evaluates the partial
+derivatives of the global Eikonax update operator w.r.t. the parameter field and the corresponding
+solution vector obtained from a forward solve. The ``DerivativeSolver`` component makes use of
+the fixed point/dajoint property of the Eikonax solver to evaluate total parametric derivatives.
+
+Classes:
+    PartialDerivatorData: Settings for initialization of partial derivator
+    PartialDerivator: Component for computing partial derivatives of the Godunov Update operator
+    DerivativeSolver: Main component for obtaining gradients from partial derivatives
+"""
 
 from dataclasses import dataclass
 from numbers import Real
@@ -692,19 +703,33 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     @property
-    def sparse_system_matrix(self):
+    def sparse_system_matrix(self) -> sp.sparse.csc_matrix:
+        """Get system matrix."""
         return self._sparse_system_matrix
 
     # ----------------------------------------------------------------------------------------------
     @property
-    def sparse_permutation_matrix(self):
+    def sparse_permutation_matrix(self) -> sp.sparse.csc_matrix:
+        """Get permutation matrix."""
         return self._sparse_permutation_matrix
 
 
 # ==================================================================================================
 def compute_eikonax_jacobian(
     derivative_solver: DerivativeSolver, partial_derivative_parameter: sp.sparse.coo_matrix
-):
+) -> npt.NDArray:
+    """Compute Jacobian from concatenation of gradients, computed with unit vector RHS.
+
+    WARNING: This method should only be used for small problems.
+
+    Args:
+        derivative_solver (DerivativeSolver): Initialized derivative solver object
+        partial_derivative_parameter (sp.sparse.coo_matrix): Partial derivative of the global update
+            operator with respect to the parameter tensor field
+
+    Returns:
+        npt.NDArray: (Dense) Jacobian matrix
+    """
     rhs_adjoint = np.zeros(derivative_solver.sparse_permutation_matrix.shape[0])
     jacobian = []
 
@@ -719,5 +744,6 @@ def compute_eikonax_jacobian(
 
 
 # --------------------------------------------------------------------------------------------------
-def compute_eikonax_hessian():
+def compute_eikonax_hessian() -> None:
+    """Compute Hessian matrix."""
     raise NotImplementedError

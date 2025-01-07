@@ -1,4 +1,22 @@
-"""_summary_."""
+"""Composable and differentiable parameter fields in JAX.
+
+This module provides ABCs and implementations for the creation of differentiable parameter fields
+used in Eikonax. To provide sufficient flexibility, the actual tensor field component, implemented
+in `TensorField`, comprises two main sub-components. Firstly, we implement a vector-to-simplices
+map, adhering to the protocol defined in `BaseVectorToSimplicesMap`. This component maps the global
+parameter vector to the local parameters of a given simplex. Secondly, we implement a simplex tensor
+component, adhering to the protocol defined in `BaseSimplexTensor`. This component assembles the
+tensor field for a given simplex and a set of parameters for that simplex. The relevant parameters
+are provided by the `VectorToSimplicesMap` component from the global parameter vector.
+
+Classes:
+    BaseVectorToSimplicesMap: ABC interface contract for vector-to-simplices maps
+    LinearScalarMap: Simple one-to-one map from global to simplex parameters
+    BaseSimplexTensor: ABC interface contract for assembly of the tensor field
+    LinearScalarSimplexTensor: SimplexTensor implementation relying on one parameter per simplex
+    InvLinearScalarSimplexTensor: SimplexTensor implementation relying on one parameter per simplex
+    TensorField: Tensor field component
+"""
 
 from abc import ABC, abstractmethod
 
@@ -248,7 +266,7 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
 
 # ==================================================================================================
 class TensorField(eqx.Module):
-    """Tensor field components.
+    """Tensor field component.
 
     Tensor fields combine the functionality of vector-to-simplices maps and simplex tensors
     according to the composition over inheritance principle. They constitute the full mapping

@@ -1,4 +1,10 @@
-"""_summary_."""
+"""Custom logging, based on Python's built-in logger.
+
+Classes:
+    LoggerSettings: Data class for logger settings
+    LogValue: Data class for log values
+    Logger: Custom logger class
+"""
 
 import logging
 import sys
