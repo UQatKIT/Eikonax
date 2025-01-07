@@ -62,7 +62,7 @@ class Solution:
     """
 
     values: jtFloat[jax.Array, "num_vertices"]
-    num_iterations: jtInt[jax.Array, ""]
+    num_iterations: int | jtInt[jax.Array, ""]
     tolerance: float | jtFloat[jax.Array, "..."] | None = None
 
 
