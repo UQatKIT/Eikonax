@@ -178,7 +178,7 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         return tensor
 
     def derivative(
-        self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
+        self, _simplex_ind: jtInt[jax.Array, ""], _parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 

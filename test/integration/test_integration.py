@@ -178,4 +178,3 @@ def test_derivative_solver_vs_finite_differences(setup_derivative_solve_checks):
     )
     error = np.linalg.norm(finite_diff_jacobian - eikonax_jacobian)
     assert error < 2e-3
-

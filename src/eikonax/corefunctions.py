@@ -1,13 +1,13 @@
-"""_summary_
+"""_summary_.
 
 Returns:
     _type_: _description_
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from numbers import Real
 
-import chex
 import jax
 import jax.numpy as jnp
 import numpy.typing as npt
@@ -17,7 +17,7 @@ from jaxtyping import Real as jtReal
 
 
 # ==================================================================================================
-@chex.dataclass
+@dataclass
 class MeshData:
     """Data characterizing a computational mesh from a vertex-centered perspective.
 
@@ -37,7 +37,7 @@ class MeshData:
     """
 
     vertices: jtFloat[jax.Array | npt.NDArray, "num_vertices dim"]
-    adjacency_data: jtFloat[jax.Array | npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]
+    adjacency_data: jtInt[jax.Array | npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]
 
     def __post_init__(self) -> None:
         """Convert to jax arrays."""
@@ -45,7 +45,7 @@ class MeshData:
         self.adjacency_data = jnp.array(self.adjacency_data, dtype=jnp.int32)
 
 
-@chex.dataclass
+@dataclass
 class InitialSites:
     """Initial site info.
 
@@ -59,7 +59,7 @@ class InitialSites:
         values (jax.Array | npt.NDArray): The values of the initial sites.
     """
 
-    inds: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
+    inds: jtInt[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
     values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
 
     def __post_init__(self) -> None:

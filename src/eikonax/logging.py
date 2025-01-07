@@ -1,11 +1,10 @@
 """_summary_."""
 
-from numbers import Real
-
 import logging
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
 
 
@@ -43,7 +42,7 @@ class Logger:
     """Custom logger class.
 
     This class is a minimal wrapper around the Python logger class. It provides handles for logging
-    to the console or a file, depnding on the user settings. The class's main interface is the
+    to the console or a file, depending on the user settings. The class's main interface is the
     `log` method, which takes a list of `LogValue` objects and logs them with the given values and
     string formats.
 

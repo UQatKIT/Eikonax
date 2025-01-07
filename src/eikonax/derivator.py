@@ -1,21 +1,23 @@
 """_summary_."""
 
+from dataclasses import dataclass
 from numbers import Real
+from typing import Annotated
 
-import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import scipy as sp
+from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 
 from . import corefunctions
 
 
-@chex.dataclass
+@dataclass
 class PartialDerivatorData:
     """Settings for initialization of partial derivator.
 
@@ -29,9 +31,9 @@ class PartialDerivatorData:
     """
 
     use_soft_update: bool
-    softmin_order: int
-    softminmax_order: int
-    softminmax_cutoff: Real
+    softmin_order: Annotated[int, Is[lambda x: x > 0]]
+    softminmax_order: Annotated[int, Is[lambda x: x > 0]]
+    softminmax_cutoff: Annotated[Real, Is[lambda x: x > 0]]
 
 
 # ==================================================================================================
@@ -47,7 +49,8 @@ class PartialDerivator(eqx.Module):
     # Equinox modules are data classes, so we need to specify attributes on class level
     _vertices: jtFloat[jax.Array, "num_vertices dim"]
     _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
-    _initial_sites: corefunctions.InitialSites
+    _initial_site_inds: jtInt[jax.Array, "num_initial_sites"]
+    _initial_site_values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"]
     _use_soft_update: bool
     _softmin_order: int
     _softminmax_order: int
@@ -70,7 +73,8 @@ class PartialDerivator(eqx.Module):
         """
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
-        self._initial_sites = initial_sites
+        self._initial_site_inds = initial_sites.inds
+        self._initial_site_values = initial_sites.values
         self._use_soft_update = derivator_data.use_soft_update
         self._softmin_order = derivator_data.softmin_order
         self._softminmax_order = derivator_data.softminmax_order
@@ -168,9 +172,9 @@ class PartialDerivator(eqx.Module):
         columns_compressed = adjacent_inds[nonzero_mask]
         values_compressed = partial_derivative_solution[nonzero_mask]
 
-        initial_site_mask = jnp.where(rows_compressed == self._initial_sites.inds)
+        initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
-            jnp.zeros(self._initial_sites.inds.shape)
+            jnp.zeros(self._initial_site_inds.shape)
         )
         return rows_compressed, columns_compressed, values_compressed
 
@@ -212,7 +216,7 @@ class PartialDerivator(eqx.Module):
         simplices_compressed = simplex_inds[nonzero_mask]
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
-        initial_site_mask = jnp.where(rows_compressed == self._initial_sites.inds)
+        initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
             jnp.zeros((initial_site_mask[0].size, tensor_dim, tensor_dim))
         )

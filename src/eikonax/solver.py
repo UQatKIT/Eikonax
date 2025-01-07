@@ -1,13 +1,15 @@
 """_summary_."""
 
 import time
+from dataclasses import dataclass
 from numbers import Real
+from typing import Annotated
 
-import chex
 import equinox as eqx
 import jax
 import jax.numpy as jnp
 import numpy.typing as npt
+from beartype.vale import Is, IsEqual
 from jaxtyping import Bool as jtBool
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
@@ -16,7 +18,7 @@ from . import corefunctions, logging
 
 
 # ==================================================================================================
-@chex.dataclass
+@dataclass
 class SolverData:
     """Settings for the initialization of the Eikonax Solver.
 
@@ -37,17 +39,19 @@ class SolverData:
             non-jitted while loop type.
     """
 
-    loop_type: str
-    max_value: Real
+    loop_type: Annotated[
+        str, IsEqual["jitted_for"] | IsEqual["jitted_while"] | IsEqual["nonjitted_while"]
+    ]
+    max_value: Annotated[Real, Is[lambda x: x > 0]]
     use_soft_update: bool
-    softminmax_order: int | None
-    softminmax_cutoff: Real | None
-    max_num_iterations: int
-    tolerance: Real | None = None
-    log_interval: int | None = None
+    softminmax_order: Annotated[int, Is[lambda x: x > 0]] | None
+    softminmax_cutoff: Annotated[Real, Is[lambda x: x > 0]] | None
+    max_num_iterations: Annotated[int, Is[lambda x: x > 0]]
+    tolerance: Annotated[Real, Is[lambda x: x > 0]] | None = None
+    log_interval: Annotated[int, Is[lambda x: x > 0]] | None = None
 
 
-@chex.dataclass
+@dataclass
 class Solution:
     """Eikonax solution object, returned by the solver.
 
@@ -58,7 +62,7 @@ class Solution:
     """
 
     values: jtFloat[jax.Array, "num_vertices"]
-    num_iterations: int
+    num_iterations: jtInt[jax.Array, ""]
     tolerance: float | jtFloat[jax.Array, "..."] | None = None
 
 
@@ -81,15 +85,16 @@ class Solver(eqx.Module):
     """
 
     # Equinox modules are data classes, so specify attributes on class level
-    _vertices: jtFloat[jax.Array, "num_vertices dim"]
-    _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
+    _vertices: jax.Array
+    _adjacency_data: jax.Array
     _loop_type: str
     _max_value: Real
     _use_soft_update: bool
     _softminmax_order: int | None
     _softminmax_cutoff: Real | None
     _max_num_iterations: int
-    _initial_sites: corefunctions.InitialSites
+    _initial_site_inds: jax.Array
+    _initial_site_values: jax.Array
     _tolerance: Real | None
     _log_interval: int | None
     _logger: logging.Logger | None
@@ -114,45 +119,7 @@ class Solver(eqx.Module):
             initial_sites (corefunctions.InitialSites): vertices and values for source points
             logger (logging.Logger | None, optional): Logger object, only required for non-jitted
                 while loops. Defaults to None.
-
-        Raises:
-            ValueError: Checks that the maximum value for initialization of the solution vector
-                is positive.
-            ValueError: Checks that the maximum number of iterations is positive.
-            ValueError: Checks that the soft minmax cutoff is positive.
-            ValueError: Checks that the soft minmax order is positive.
-            ValueError: Checks that the softmin order is positive.
-            ValueError: Checks that the prescribed tolerance is positive, if it is provided.
-            ValueError: Checks that the log interval is positive, if it is provided.
-            ValueError: Checks that the provided mesh data is consistent.
         """
-        if solver_data.max_value <= 0:
-            raise ValueError(f"Max value needs to be positive, but is {solver_data.max_value}")
-        if solver_data.max_num_iterations <= 0:
-            raise ValueError(
-                f"Max number of iterations needs to be positive, "
-                f"but is {solver_data.max_num_iterations}"
-            )
-        if solver_data.use_soft_update and solver_data.softminmax_cutoff <= 0:
-            raise ValueError(
-                f"Softminmax cutoff needs to be positive, but is {solver_data.softminmax_cutoff}"
-            )
-        if solver_data.use_soft_update and solver_data.softminmax_order <= 0:
-            raise ValueError(
-                f"Softminmax order needs to be positive, but is {solver_data.softminmax_order}"
-            )
-        if solver_data.tolerance is not None and solver_data.tolerance <= 0:
-            raise ValueError(f"Tolerance needs to be positive, but is {solver_data.tolerance}")
-        if solver_data.log_interval is not None and solver_data.log_interval <= 0:
-            raise ValueError(
-                f"Log interval needs to be positive, but is {solver_data.log_interval}"
-            )
-        if mesh_data.adjacency_data.shape[0] != mesh_data.vertices.shape[0]:
-            raise ValueError(
-                f"Adjacency data array needs to have shape {mesh_data.vertices.shape[0]}, "
-                f"but has shape {mesh_data.adjacency_data.shape[0]}"
-            )
-
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._loop_type = solver_data.loop_type
@@ -163,7 +130,8 @@ class Solver(eqx.Module):
         self._max_num_iterations = solver_data.max_num_iterations
         self._tolerance = solver_data.tolerance
         self._log_interval = solver_data.log_interval
-        self._initial_sites = initial_sites
+        self._initial_site_inds = initial_sites.inds
+        self._initial_site_values = initial_sites.values
         self._logger = logger
 
     # ----------------------------------------------------------------------------------------------
@@ -188,7 +156,7 @@ class Solver(eqx.Module):
         """
         tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
         initial_guess = jnp.ones(self._vertices.shape[0]) * self._max_value
-        initial_guess = initial_guess.at[self._initial_sites.inds].set(self._initial_sites.values)
+        initial_guess = initial_guess.at[self._initial_site_inds].set(self._initial_site_values)
 
         match self._loop_type:
             case "jitted_for":

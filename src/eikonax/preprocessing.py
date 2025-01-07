@@ -1,9 +1,11 @@
 """_summary_."""
 
 from collections.abc import Iterable
+from typing import Annotated
 
 import numpy as np
 import numpy.typing as npt
+from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 from scipy.spatial import Delaunay
@@ -11,10 +13,10 @@ from scipy.spatial import Delaunay
 
 # ==================================================================================================
 def create_test_mesh(
-    mesh_bounds_x: Iterable[float, float],
-    mesh_bounds_y: Iterable[float, float],
-    num_points_x: int,
-    num_points_y: int,
+    mesh_bounds_x: Annotated[Iterable[float], Is[lambda x: len(x) == 2]],
+    mesh_bounds_y: Annotated[Iterable[float], Is[lambda x: len(x) == 2]],
+    num_points_x: Annotated[int, Is[lambda x: x >= 2]],
+    num_points_y: Annotated[int, Is[lambda x: x >= 2]],
 ) -> tuple[jtFloat[npt.NDArray, "num_vertices dim"], jtInt[npt.NDArray, "num_simplices 3"]]:
     """Create a simple test mesh with Scipy's Delauny functionality.
 
@@ -35,18 +37,11 @@ def create_test_mesh(
         tuple[npt.NDArray, npt.NDArray]: Array of vertex coordinates and array of simplex indices
     """
     for mesh_bounds in (mesh_bounds_x, mesh_bounds_y):
-        if len(mesh_bounds) != 2:
-            raise ValueError(
-                f"Mesh bounds must be a tuple with two elements, not {len(mesh_bounds)}"
-            )
         if mesh_bounds[0] >= mesh_bounds[1]:
             raise ValueError(
                 f"Lower domain bound ({mesh_bounds[0]}) must be less than upper bound"
                 f"({mesh_bounds[1]})"
             )
-    for num_points in (num_points_x, num_points_y):
-        if num_points < 2:
-            raise ValueError(f"Number of mesh points must be at least 2, not {num_points}")
     mesh_points_x = np.linspace(*mesh_bounds, num_points_x)
     mesh_points_y = np.linspace(*mesh_bounds, num_points_y)
     mesh_points = np.column_stack(
@@ -58,7 +53,8 @@ def create_test_mesh(
 
 # --------------------------------------------------------------------------------------------------
 def get_adjacent_vertex_data(
-    simplices: jtInt[npt.NDArray, "num_simplices 3"], num_vertices: int
+    simplices: jtInt[npt.NDArray, "num_simplices 3"],
+    num_vertices: Annotated[int, Is[lambda x: x > 0]],
 ) -> jtInt[npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]:
     """Preprocess mesh data for a vertex-centered evaluation.
 
