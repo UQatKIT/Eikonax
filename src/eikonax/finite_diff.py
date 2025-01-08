@@ -153,7 +153,7 @@ def compute_fd_jacobian(
     stencil: Callable,
     eval_point: jtReal[npt.NDArray | jax.Array, "M"],
     step_width: float,
-)-> jtReal[npt.NDArray, "N M"]:
+) -> jtReal[npt.NDArray, "N M"]:
     """Compute the Jacobian of the Eikonal equation w.r.t. to parameter with finite differences.
 
     WARNING: This method should only be used for small problems.

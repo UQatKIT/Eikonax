@@ -23,25 +23,31 @@ dependencies = [
   "jax>=0.4.31,<0.5",
   "jaxtyping>=0.2.36,<0.3",
   "numpy>=2.1.1,<3",
+  "scipy>=1.14.1,<2",
 ]
 
-[project.optional-dependencies]
-development = [
+[dependency-groups]
+dev = [
   "fim-python>=1.2.2",
   "jupyter>=1.1.1,<2",
   "matplotlib>=3.9.2,<4",
-  "scipy>=1.14.1,<2",
   "pandas>=2.2.2,<3",
   "pytest>=8.3.4,<9",
   "pytest-cov>=6.0.0,<7",
   "pytest-xdist>=3.6.1,<4",
   "seaborn>=0.13.2,<0.14",
+  "ruff>=0.8.6",
 ]
 
 # --------------------------------------------------------------------------------------------------
 [build-system]
 build-backend = "hatchling.build"
 requires = ["hatchling"]
+
+[tool.uv]
+environments = [
+    "sys_platform == 'linux'",
+]
 
 # --------------------------------------------------------------------------------------------------
 [tool.ruff]
