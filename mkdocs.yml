@@ -2,9 +2,10 @@
 # == Configuration for static site generation with MKDocs ==========================================
 # ==================================================================================================
 # -- Site metadata ---------------------------------------------------------------------------------
+docs_dir: docs/source
 site_name: Eikonax
 site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
-repo_url: https://github.com/SeisSolUQ/mtmlda
+repo_url: https://github.com/UQatKIT/Eikonax
 repo_name: Eikonax
 
 # -- Material theme configuration ------------------------------------------------------------------
