@@ -8,7 +8,7 @@ from fimpy.solver import create_fim_solver
 from eikonax import (
     corefunctions,
     derivator,
-    finite_diff,
+    finitediff,
     logging,
     preprocessing,
     solver,
@@ -169,10 +169,10 @@ def test_derivative_solver_vs_finite_differences(setup_derivative_solve_checks):
     eikonax_jacobian = derivator.compute_eikonax_jacobian(
         derivative_solver, partial_derivative_parameter
     )
-    finite_diff_jacobian = finite_diff.compute_fd_jacobian(
+    finite_diff_jacobian = finitediff.compute_fd_jacobian(
         eikonax_solver=eikonal_solver,
         tensor_field=tensor_field,
-        stencil=finite_diff.finite_diff_1_forward,
+        stencil=finitediff.finite_diff_1_forward,
         eval_point=parameter_vector,
         step_width=1e-3,
     )

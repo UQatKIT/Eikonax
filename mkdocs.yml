@@ -1,0 +1,93 @@
+# ==================================================================================================
+# == Configuration for static site generation with MKDocs ==========================================
+# ==================================================================================================
+
+# -- Material theme configuration ------------------------------------------------------------------
+theme:
+  name: material
+  features:
+    - content.code.annotate # Enable annotations in code blocks
+    - content.code.copy # Make copy button available on code blocks
+    - content.code.select # Allow selection of lines by the user
+    - header.autohide # header disappears as you scroll
+    - navigation.sections # Sections are included in the navigation on the left.
+    - navigation.top # Show "go to top" button when scrolling up
+    - toc.integrate # Table of contents is integrated on the left; does not appear separately on the right.
+    - search.suggest # Make suggestions for most likely search word
+  
+  # Define light and dark theme, both based on KIT green
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+  favicon: images/radio_tower.png
+  icon:
+    logo: material/radio-tower
+    repo: material/git
+
+# -- Site metadata ---------------------------------------------------------------------------------
+site_name: Eikonax
+site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
+repo_url: https://github.com/SeisSolUQ/mtmlda
+repo_name: Eikonax
+
+# -- Markdown extensions ---------------------------------------------------------------------------
+markdown_extensions:
+  - admonition # Enable call-outs
+  - attr_list # Add HTML to markdown elements
+  - footnotes # Enable footnotes
+  - md_in_html # Read in raw HTML blocks
+  - tables # Allow tables in markdown
+  - pymdownx.betterem # Improve bold and italic fonts
+  - pymdownx.blocks.caption # Enable captions for blocks
+  - pymdownx.caret # Superscripts
+  - pymdownx.details # Make elements collapseable with "???+"
+  - pymdownx.inlinehilite # Syntax highlighting for inline code blocks
+  - pymdownx.mark # Mark text
+  - pymdownx.tilde # Subscripts
+  - pymdownx.snippets # Embed content from arbitrary files like source code
+  - pymdownx.superfences # Nesting of content blocks
+  - pymdownx.highlight: # Syntax highlighting for code blocks
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.arithmatex: # Rendering of Latex code (math mode with MathJax)
+      generic: true
+  - toc: # Automatically generate table of contents
+      permalink: true
+
+# -- Plugins ---------------------------------------------------------------------------------------
+plugins:
+  - search # Default search engine
+
+# -- Extra configuration ---------------------------------------------------------------------------
+extra_javascript:
+  - config/mathjax.js # MathJax configuration
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
+
+
+extra_css:
+  - config/style.css # Colors and formats
+
+# -- Navigation ------------------------------------------------------------------------------------
+nav:
+  - Getting Started: index.md
+  - Usage:
+    - Forward Solver: usage/solver.md
+    - Parametric Derivatives: usage/derivatives.md
+  - Background:
+    - Theory: background/theory.md
+    - Software Setup: background/setup.md
+  - API Reference:
+    - Solver: api/solver.md
+    - Derivator: api/derivator.md
+    - Tensorfield: api/tensorfield.md
+    - Preprocessing: api/preprocessing.md
+    - Logging: api/logging.md
+    - Core Functions: api/core.md
+    - Finite Differences: api/finitediff.md
