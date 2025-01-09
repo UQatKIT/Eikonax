@@ -10,7 +10,7 @@ u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
 \end{gather*}
 $$
 
-The iterative solver is based on Godunov Upwind schemes and employs global Jacobi updates, which can be efficiently ported to SIMD architectures.
+The iterative solver is based on Godunov-type upwinding and employs global Jacobi updates, which can be efficiently ported to SIMD architectures.
 In addition, Eikonax implements an efficient algorithm for the evaluation of parametric derivatives, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. Through exploitation of causality in the forward solution, Eikonax can compute this derivatives through discrete adjoint on timescales much smaller than those for the forward solve.
 
 !!! note "The JAX in Eikonax"
