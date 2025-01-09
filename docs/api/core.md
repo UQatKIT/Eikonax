@@ -1,1 +1,3 @@
 # Core Functions
+
+::: eikonax.corefunctions

@@ -33,7 +33,7 @@ class SolverData:
             options are 'jitted_for', 'jitted_while', 'nonjitted_while'.
         max_value (Real): Maximum value for the initialization of the solution vector.
         use_soft_update: Flag for using soft minmax approximation for optimization parameters
-        softminmax_order (int | None): Order of the soft minmax [0,1] approximation for optimization
+        softminmax_order (int | None): Order of the soft minmax approximation for optimization
             parameters. Only required if `use_soft_update` is True.
         softminmax_cutoff (Real | None): Cutoff distance from [0,1] for the soft minmax function.
             Only required if `use_soft_update` is True.
