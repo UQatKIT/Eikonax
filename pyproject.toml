@@ -22,7 +22,6 @@ dependencies = [
   "equinox>=0.11.5,<0.11.6",
   "jax>=0.4.31,<0.5",
   "jaxtyping>=0.2.36,<0.3",
-  "mkdocstrings[python]>=0.27.0",
   "numpy>=2.1.1,<3",
   "scipy>=1.14.1,<2",
 ]
@@ -32,13 +31,17 @@ dev = [
   "fim-python>=1.2.2",
   "jupyter>=1.1.1,<2",
   "matplotlib>=3.9.2,<4",
+  "mkdocs-material>=9.5.49",
+  "mkdocs-autorefs>=1.2.0",
+  "mkdocstrings[python]>=0.27.0",
   "pandas>=2.2.2,<3",
   "pytest>=8.3.4,<9",
   "pytest-cov>=6.0.0,<7",
   "pytest-xdist>=3.6.1,<4",
   "seaborn>=0.13.2,<0.14",
   "ruff>=0.8.6",
-  "mkdocs-material>=9.5.49",
+  "mknotebooks>=0.8.0",
+  "mkdocs-jupyter>=0.25.1",
 ]
 
 # --------------------------------------------------------------------------------------------------
@@ -47,9 +50,7 @@ build-backend = "hatchling.build"
 requires = ["hatchling"]
 
 [tool.uv]
-environments = [
-    "sys_platform == 'linux'",
-]
+environments = ["sys_platform == 'linux'"]
 
 # --------------------------------------------------------------------------------------------------
 [tool.ruff]

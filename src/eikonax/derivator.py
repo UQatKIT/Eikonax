@@ -3,7 +3,7 @@
 This module contains two main components. Firstly, the `PartialDerivator` evaluates the partial
 derivatives of the global Eikonax update operator w.r.t. the parameter field and the corresponding
 solution vector obtained from a forward solve. The ``DerivativeSolver`` component makes use of
-the fixed point/dajoint property of the Eikonax solver to evaluate total parametric derivatives.
+the fixed point/adjoint property of the Eikonax solver to evaluate total parametric derivatives.
 
 Classes:
     PartialDerivatorData: Settings for initialization of partial derivator
@@ -161,6 +161,7 @@ class PartialDerivator(eqx.Module):
         """Compress the partial derivative data with respect to the solution vector.
 
         Compression consists of two steps:
+
         1. Remove zero entries in the sensitivity vector
         2. Set the sensitivity vector to zero at the initial sites, but keep them for later
            computations.
@@ -203,6 +204,7 @@ class PartialDerivator(eqx.Module):
         """Compress the partial derivative data with respect to the parameter field.
 
         Compression consists of two steps:
+
         1. Remove tensor components from the sensitivity data, if all entries are zero
         2. Set the sensitivity vector to zero at the initial sites, but keep them for later
            computations.
@@ -609,7 +611,7 @@ class DerivativeSolver:
     ) -> jtFloat[npt.NDArray, "num_parameters"]:
         """Solve the linear system for the parametric gradient.
 
-        The right-hand-siide needs to be given as the partial derivative of the prescribed cost
+        The right-hand-side needs to be given as the partial derivative of the prescribed cost
         functional w.r.t. the solution vector. This right-hand-side is permutated according to the
         causality of the solution. Subsequently, the linear system can be solved through (sparse)
         back-substitution. The solution is then permutated back to the original ordering.
@@ -672,13 +674,13 @@ class DerivativeSolver:
         """Assemble system matrix for gradient solver.
 
         The parametric gradient of the global update operator is obtained from a linear system
-        solve, where the system matrix is given as (I-G_u)^T, where G_u is the partial derivative of
-        the global update operator with respect to the solution vector. According to the
-        causality of the solution, we can permutate the system matrix to a triangular form.
+        solve, where the system matrix is given as $(I-G_u)^T$, where $G_u$ is the partial
+        derivative of the global update operator with respect to the solution vector. According to
+        the causality of the solution, we can permutate the system matrix to a triangular form.
 
         Args:
             sparse_partial_update_solution (tuple[npt.NDArray, npt.NDArray, npt.NDArray]):
-                Sparse representation of the partial derivative G_u, containing row inds, column
+                Sparse representation of the partial derivative $G_u$, containing row inds, column
                 inds and values. These structures might contain redundances, which are
                 automatically removed through summation in the sparse matrix assembly.
             num_points (int): Number of mesh points
@@ -720,7 +722,9 @@ def compute_eikonax_jacobian(
 ) -> npt.NDArray:
     """Compute Jacobian from concatenation of gradients, computed with unit vector RHS.
 
-    WARNING: This method should only be used for small problems.
+    !!! warning
+
+        This method should only be used for small problems.
 
     Args:
         derivative_solver (DerivativeSolver): Initialized derivative solver object
@@ -745,5 +749,8 @@ def compute_eikonax_jacobian(
 
 # --------------------------------------------------------------------------------------------------
 def compute_eikonax_hessian() -> None:
-    """Compute Hessian matrix."""
+    """Compute Hessian matrix.
+
+    !!! failure "Not implemented yet"
+    """
     raise NotImplementedError

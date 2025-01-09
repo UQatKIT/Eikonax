@@ -1,4 +1,4 @@
-"""Composable and differentiable parameter fields in JAX.
+"""Composable and differentiable parameter fields.
 
 This module provides ABCs and implementations for the creation of differentiable parameter fields
 used in Eikonax. To provide sufficient flexibility, the actual tensor field component, implemented
@@ -38,7 +38,7 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
     the relevant parameters for a given simplex from the global parameter vector.
 
     Methods:
-        map: jtInterface for vector-so-simplex mapping
+        map: Interface for vector-so-simplex mapping
     """
 
     # ----------------------------------------------------------------------------------------------
@@ -186,7 +186,7 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
-            simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            _simplex_ind (jax.Array): Index of simplex under consideration (not used)
             parameters (jax.Array): Parameter (scalar) for tensor assembly
 
         Returns:
@@ -204,7 +204,7 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
 
         Args:
             _simplex_ind (jax.Array): Index of simplex under consideration (not used)
-            parameters (jax.Array): Parameter (scalar) for tensor assembly
+            _parameters (jax.Array): Parameter (scalar) for tensor assembly
 
         Returns:
             jax.Array: Jacobian tensor for the simplex under consideration
@@ -233,7 +233,7 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
         to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
-            simplex_ind (jax.Array): Index of simplex under consideration (not used)
+            _simplex_ind (jax.Array): Index of simplex under consideration (not used)
             parameters (jax.Array): Parameter (scalar) for tensor assembly
 
         Returns:

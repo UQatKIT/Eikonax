@@ -30,12 +30,12 @@ class SolverData:
 
     Args:
         loop_type (str): Type of loop for iterations,
-            options are 'jitted_for', 'jitted_while','nonjitted_while'.
+            options are 'jitted_for', 'jitted_while', 'nonjitted_while'.
         max_value (Real): Maximum value for the initialization of the solution vector.
         use_soft_update: Flag for using soft minmax approximation for optimization parameters
         softminmax_order (int | None): Order of the soft minmax [0,1] approximation for optimization
-        parameters. Only required if `use_soft_update` is True.
-        softminmax_cutoff(Real | None): Cutoff distance from [0,1] for the soft minmax function.
+            parameters. Only required if `use_soft_update` is True.
+        softminmax_cutoff (Real | None): Cutoff distance from [0,1] for the soft minmax function.
             Only required if `use_soft_update` is True.
         max_num_iterations (int): Maximum number of iterations after which to terminate the solver.
             Required for all loop types
@@ -64,7 +64,7 @@ class Solution:
     Args:
         values (jax.Array): Actual solution vector.
         num_iterations (int): Number of iterations performed in the solve.
-        tolerance (float, jax.Array): Tolerance from last two iterates, or entire tolerance history
+        tolerance (float | jax.Array): Tolerance from last two iterates, or entire tolerance history
     """
 
     values: jtFloat[jax.Array, "num_vertices"]
@@ -77,14 +77,14 @@ class Solver(eqx.Module):
     """Eikonax solver class.
 
     The solver class is the main component for computing the solution of the Eikonal equation for
-    given geometry, tensor field, and initial sites. THe Eikonax solver works on the vertex level,
+    given geometry, tensor field, and initial sites. The Eikonax solver works on the vertex level,
     meaning that it considers updates from all adjacent triangles to a vertex, instead of all
     updates for all vertices per triangle. This allows to establish causality in the final solution,
     which is important for the efficient computation of parametric derivatives.
     The solver class is mainly a wrapper around different loop constructs, which call vectorized
     forms of the methods implemented in the `corefunctions` module. These loop constructs evolve
     around the loop functionality provided by JAX. Furthermore, the solver class is based on the
-    equinox Module class, which allows for usage of OOP features cohersian between data and methods.
+    equinox Module class, which allows for usage of OOP features in JAX.
 
     Methods:
         run: Main interface for Eikonax runs.
@@ -116,8 +116,7 @@ class Solver(eqx.Module):
         """Constructor of the solver class.
 
         The constructor initializes all data structures that are re-used in many-query scenarios,
-        sucha s the solution of inverse problems. It further conducts some data validation on the
-        input provided by the user.
+        such as the solution of inverse problems.
 
         Args:
             mesh_data (corefunctions.MeshData): Vertex-based mesh data.

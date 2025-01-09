@@ -1,1 +1,0 @@
-# Solving the Eikonal Equation

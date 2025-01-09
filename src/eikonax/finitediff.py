@@ -1,7 +1,9 @@
 """Finite difference approximation of parametric derivatives.
 
-Finite difference approximations are typically computationally expensive and inaccurate. They should
-only be used for comparison in small test cases.
+!!! warning
+
+    Finite difference approximations are typically computationally expensive and inaccurate. They
+    should only be used for comparison in small test cases.
 
 Functions:
     finite_diff_1_forward: Forward finite difference approximation of a first order derivative
@@ -120,7 +122,10 @@ def finite_diff_2(
     index_1: int,
     index_2: int,
 ) -> None:
-    """Implement second order finite differences."""
+    """Implement second order finite differences.
+
+    !!! failure "Not implemented yet"
+    """
     raise NotImplementedError
 
 

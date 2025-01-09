@@ -1,7 +1,7 @@
 # Eikonax
 
-
 ## Installation
 
+## Overview of Resources
 
-## Further Resources
+## Acknowledgement

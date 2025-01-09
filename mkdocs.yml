@@ -1,6 +1,11 @@
 # ==================================================================================================
 # == Configuration for static site generation with MKDocs ==========================================
 # ==================================================================================================
+# -- Site metadata ---------------------------------------------------------------------------------
+site_name: Eikonax
+site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
+repo_url: https://github.com/SeisSolUQ/mtmlda
+repo_name: Eikonax
 
 # -- Material theme configuration ------------------------------------------------------------------
 theme:
@@ -30,12 +35,6 @@ theme:
     logo: material/radio-tower
     repo: material/git
 
-# -- Site metadata ---------------------------------------------------------------------------------
-site_name: Eikonax
-site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
-repo_url: https://github.com/SeisSolUQ/mtmlda
-repo_name: Eikonax
-
 # -- Markdown extensions ---------------------------------------------------------------------------
 markdown_extensions:
   - admonition # Enable call-outs
@@ -64,6 +63,36 @@ markdown_extensions:
 # -- Plugins ---------------------------------------------------------------------------------------
 plugins:
   - search # Default search engine
+  - autorefs: # Generate references between files
+      resolve_closest: false
+  - mkdocstrings: # Inclusion of docstrings in code base
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            allow_inspection: true
+            annotations_path: source
+            docstring_style: google
+            filters: []
+            group_by_category: true
+            line_length: 100
+            members: true
+            members_order: source
+            merge_init_into_class: false
+            relative_crossrefs: true
+            scoped_crossrefs: true
+            separate_signature: true
+            show_bases: true
+            show_category_heading: false
+            show_if_no_docstring: false
+            show_root_full_path: false
+            show_root_heading: true
+            show_root_members_full_path: true
+            show_root_toc_entry: true
+            show_signature: true
+            show_signature_annotations: true
+            show_source: false
 
 # -- Extra configuration ---------------------------------------------------------------------------
 extra_javascript:
@@ -78,7 +107,7 @@ extra_css:
 nav:
   - Getting Started: index.md
   - Usage:
-    - Forward Solver: usage/solver.md
+    - Forward Solver: usage/solve.md
     - Parametric Derivatives: usage/derivatives.md
   - Background:
     - Theory: background/theory.md

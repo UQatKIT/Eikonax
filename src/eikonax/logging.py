@@ -109,7 +109,7 @@ class Logger:
     def header(self, log_values: Iterable[LogValue]) -> None:
         """Log the table header to console and file.
 
-        This method should be invoked once at the beginning of the logging process
+        This method should be invoked once at the beginning of the logging process.
 
         Args:
             log_values (Iterable[LogValue]): List of log values

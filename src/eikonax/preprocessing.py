@@ -1,6 +1,6 @@
 """Test mesh creation and preparation for Eikonax solver runs.
 
-The creation of test meshes can be done with any other tools. THe format of the required adjacency
+The creation of test meshes can be done with any other tool. The format of the required adjacency
 data for Eikonax is strict, however.
 
 Functions:
