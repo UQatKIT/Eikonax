@@ -215,3 +215,6 @@ pyrightconfig.json
 
 # Notebooks
 development.ipynb
+
+# Documentation
+!docs/build/
