@@ -1,7 +1,51 @@
-# Eikonax [<img src="images/uq_logo.png" width="200" height="150" alt="UQ at KIT" align="right">](https://www.scc.kit.edu/forschung/uq.php)
+# Eikonax [<img src="images/uq_logo.png" width="200" height="100" alt="UQ at KIT" align="right">](https://www.scc.kit.edu/forschung/uq.php)
 
-## Installation
+Eikonax is a pure Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
+
+$$
+\begin{gather*}
+\sqrt{\big(\nabla u(\mathbf{x}),\mathbf{M}(\mathbf{x})\nabla u(\mathbf{x})\big)} = 1,\quad \mathbf{x}\in\Omega, \\
+\nabla u(\mathbf{x}) \cdot \mathbf{n}(\mathbf{x}) \geq 0,\quad \mathbf{x}\in\partial\Omega, \\
+u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
+\end{gather*}
+$$
+
+The iterative solver is based on Godunov Upwind schemes and employs global Jacobi updates, which can be efficiently ported to SIMD architectures.
+In addition, Eikonax implements an efficient algorithm for the evaluation of parametric derivatives, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. Through exploitation of causality in the forward solution, Eikonax can compute this derivatives through discrete adjoint on timescales much smaller than those for the forward solve.
+
+!!! note "The JAX in Eikonax"
+    Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading off relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
+
+## Installation and Development
+
+Eikonax is deployed as a **python package**, simply install via
+```bash
+pip install eikonax
+```
+
+For **development**, we recommend using the great [**uv**](https://docs.astral.sh/uv/) project management tool, for with Eikonax provides a universal lock file. To set up a reproducible environment, run
+```bash
+uv sync
+```
+in the project root directory.
 
 ## Overview of Resources
 
-## Acknowledgement
+
+### Usage
+
+Under Usage, we provide guides walkthroughs through the functionalities of Eikonax.
+The [Forward Solver](usage/solve.md) document explains in detail how to set up Eikonax for solving the Eikonal equation. [Parametric Derivatives](usage/derivatives.md) demonstrates how to differentiate the solver, given a computed forward solution.
+
+### Background
+
+This section discusses more technical topics of Eikonax. The [Theory](background/theory.md) section elucidates the mathematical and 
+algorithmic backbone of the library. In [Software](background/setup.md), we show how the theoretical considerations translate to the design and functionality of Eikonax.
+
+### API Reference
+
+The API reference contains detailed explanations of all software components of Eikonax, and how to use them.
+
+## Acknowledgement and License
+
+Eikonax is being developed in the research group [**Uncertainty Quantification**](https://www.scc.kit.edu/forschung/uq.php) at KIT. Itis distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
