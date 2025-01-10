@@ -28,6 +28,8 @@ from . import corefunctions, logging
 class SolverData:
     """Settings for the initialization of the Eikonax Solver.
 
+    See the [Forward Solver](../usage/solve.md) documentation for more detailed explanations.
+
     Args:
         loop_type (str): Type of loop for iterations,
             options are 'jitted_for', 'jitted_while', 'nonjitted_while'.
@@ -61,6 +63,8 @@ class SolverData:
 class Solution:
     """Eikonax solution object, returned by the solver.
 
+    See the [Forward Solver](../usage/solve.md) documentation for more detailed explanations.
+
     Args:
         values (jax.Array): Actual solution vector.
         num_iterations (int): Number of iterations performed in the solve.
@@ -74,17 +78,40 @@ class Solution:
 
 # ==================================================================================================
 class Solver(eqx.Module):
-    """Eikonax solver class.
+    r"""Eikonax solver class.
 
-    The solver class is the main component for computing the solution of the Eikonal equation for
-    given geometry, tensor field, and initial sites. The Eikonax solver works on the vertex level,
+    The solver class is the main component for computing the solution $u$ of the Eikonal equation
+    for given geometry $\Omega$, tensor field $\mathbf{M}$, and initial sites $\Gamma$,
+
+    $$
+    \begin{gather*}
+    \sqrt{\big(\nabla u(\mathbf{x}),\mathbf{M}(\mathbf{x})\nabla u(\mathbf{x})\big)} = 1,\quad
+    \mathbf{x}\in\Omega, \\
+    \nabla u(\mathbf{x}) \cdot \mathbf{n}(\mathbf{x}) \geq 0,\quad \mathbf{x}\in\partial\Omega, \\
+    u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
+    \end{gather*}
+    $$
+
+    On the discrete level, the solver perform global Jacobi iterations of the form
+
+    $$
+        \mathbf{u}^{(j+1)} = \mathbf{G}(\mathbf{u}^{(j)}),
+    $$
+
+    where $\mathbf{G}$ is the global update function, derived from Godunov-type upwinding
+    principles. The solver can either be run with a fixed number of iterations, or until a
+    user-defined tolerance for the difference between two consecutive iterates in supremum norm is
+    undercut.
+
+    The Eikonax solver works on the vertex level,
     meaning that it considers updates from all adjacent triangles to a vertex, instead of all
     updates for all vertices per triangle. This allows to establish causality in the final solution,
     which is important for the efficient computation of parametric derivatives.
     The solver class is mainly a wrapper around different loop constructs, which call vectorized
-    forms of the methods implemented in the `corefunctions` module. These loop constructs evolve
-    around the loop functionality provided by JAX. Furthermore, the solver class is based on the
-    equinox Module class, which allows for usage of OOP features in JAX.
+    forms of the methods implemented in the [`corefunctions`][eikonax.corefunctions] module. These
+    loop constructs evolve around the loop functionality provided by JAX. Furthermore, the solver
+    class is based on the [equinox Module class](https://docs.kidger.site/equinox/api/module/module/),
+    which allows for usage of OOP features in JAX.
 
     Methods:
         run: Main interface for Eikonax runs.
@@ -144,7 +171,7 @@ class Solver(eqx.Module):
         self,
         tensor_field: jtFloat[jax.Array | npt.NDArray, "num_simplices dim dim"],
     ) -> Solution:
-        """Main interface for cunducting solver runs.
+        """Main interface for conducting solver runs.
 
         The method initializes the solution vector and dispatches to the run method for the
         selected loop type.
@@ -193,7 +220,8 @@ class Solver(eqx.Module):
         """Solver run with jitted for loop for iterations.
 
         The method constructs a JAX-type for loop with fixed number of iterations. For every
-        iteration, a new solution vector is computed from the `_compute_global_update` method.
+        iteration, a new solution vector is computed from the
+        [`_compute_global_update`][eikonax.solver.Solver._compute_global_update] method.
 
         Args:
             initial_guess (jax.Array): Initial solution vector
@@ -237,7 +265,8 @@ class Solver(eqx.Module):
 
         The iterator is tolerance-based, terminating after a user-defined tolerance for the
         difference between two consecutive iterates in supremum norm is undercut. For every
-        iteration, a new solution vector is computed from the `_compute_global_update` method
+        iteration, a new solution vector is computed from the
+        [`_compute_global_update`][eikonax.solver.Solver._compute_global_update] method.
 
         Args:
             initial_guess (jax.Array): Initial solution vector
@@ -302,7 +331,8 @@ class Solver(eqx.Module):
         While being less performant, the Python while loop allows for logging of infos between
         iterations. The iterator is tolerance-based, terminating after a user-defined tolerance for
         the difference between two consecutive iterates in supremum norm is undercut. For every
-        iteration, a new solution vector is computed from the `_compute_global_update` method
+        iteration, a new solution vector is computed from the
+        [`_compute_global_update`][eikonax.solver.Solver._compute_global_update] method.
 
         Args:
             initial_guess (jax.Array): Initial solution vector
@@ -365,7 +395,8 @@ class Solver(eqx.Module):
     ) -> jtFloat[jax.Array, "num_vertices"]:
         """Given a current state and tensor field, compute a new solution vector.
 
-        This method is basically a vectorized call to the `_compute_vertex_update` method, evaluated
+        This method is basically a vectorized call to the
+        [`_compute_vertex_update`][eikonax.solver.Solver._compute_vertex_update] method, evaluated
         over all vertices of the mesh.
 
         Args:
@@ -401,7 +432,7 @@ class Solver(eqx.Module):
         """Compute the update value for a single vertex.
 
         This method links to the main logic of the solver routine, based on functions in the
-        `corefunctions` module.
+        [`corefunctions`][eikonax.corefunctions] module.
 
         Args:
             old_solution_vector (jax.Array): Current state

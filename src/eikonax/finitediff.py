@@ -33,10 +33,17 @@ def finite_diff_1_forward(
     step_width: Real,
     index: int,
 ) -> jtReal[npt.NDArray, "N"]:
-    """Forward finite difference approximation of a first order derivative.
+    r"""Forward finite difference approximation of a first order derivative.
 
-    The function evaluates the partial derivative of the function `func` at the point `eval_point`
-    for the index `index`.
+    This method expects vector-valued functions $f: \mathbb{R}^M \to \mathbb{R}^N$, and approximates
+    the first derivative of $f$ at a given point $x \in \mathbb{R}^M$ with respect to the $i$-th
+    component of $x$ as
+
+    $$
+        \frac{\partial f(x)}{\partial x_i} \approx \frac{f(x + h e_i) - f(x)}{h}
+    $$
+
+    with a step width $h>0$.
 
     Args:
         func (Callable): Callable to use for FD computation
@@ -62,10 +69,17 @@ def finite_diff_1_backward(
     step_width: float,
     index: int,
 ) -> jtReal[npt.NDArray, "N"]:
-    """Backward finite difference approximation of a first order derivative.
+    r"""Backward finite difference approximation of a first order derivative.
 
-    The function evaluates the partial derivative of the function `func` at the point `eval_point`
-    for the index `index`.
+    This method expects vector-valued functions $f: \mathbb{R}^M \to \mathbb{R}^N$, and approximates
+    the first derivative of $f$ at a given point $x \in \mathbb{R}^M$ with respect to the $i$-th
+    component of $x$ as
+
+    $$
+        \frac{\partial f(x)}{\partial x_i} \approx \frac{f(x)- f(x - h e_i)}{h}
+    $$
+
+    with a step width $h>0$.
 
     Args:
         func (Callable): Callable to use for FD computation
@@ -91,10 +105,17 @@ def finite_diff_1_central(
     step_width: float,
     index: int,
 ) -> jtReal[npt.NDArray, "N"]:
-    """Central finite difference approximation of a first order derivative.
+    r"""Central finite difference approximation of a first order derivative.
 
-    The function evaluates the partial derivative of the function `func` at the point `eval_point`
-    for the index `index`.
+    This method expects vector-valued functions $f: \mathbb{R}^M \to \mathbb{R}^N$, and approximates
+    the first derivative of $f$ at a given point $x \in \mathbb{R}^M$ with respect to the $i$-th
+    component of $x$ as
+
+    $$
+        \frac{\partial f(x)}{\partial x_i} \approx \frac{f(x + h e_i)- f(x - h e_i)}{2h}
+    $$
+
+    with a step width $h>0$.
 
     Args:
         func (Callable): Callable to use for FD computation
@@ -159,9 +180,13 @@ def compute_fd_jacobian(
     eval_point: jtReal[npt.NDArray | jax.Array, "M"],
     step_width: float,
 ) -> jtReal[npt.NDArray, "N M"]:
-    """Compute the Jacobian of the Eikonal equation w.r.t. to parameter with finite differences.
+    r"""Finite Difference Jacobian.
 
-    WARNING: This method should only be used for small problems.
+    Compute the Jacobian of the discrete Eikonal equation solution $\mathbf{u}\in\mathbb{R}^N$
+    w.r.t. to a parameter vector $\mathbf{m}\in\mathbb{R}^M$ with finite differences.
+
+    !!! warning
+        This method should only be used for small problems.
 
     Args:
         eikonax_solver (solver.Solver): Initialized solver object
@@ -192,5 +217,8 @@ def compute_fd_hessian(
     eval_point: jtReal[npt.NDArray | jax.Array, "M"],
     step_width: float,
 ) -> None:
-    """Implement finite difference Hessian computation."""
+    """Implement finite difference Hessian computation.
+
+    !!! failure "Not implemented yet"
+    """
     raise NotImplementedError

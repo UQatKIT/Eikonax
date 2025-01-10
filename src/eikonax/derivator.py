@@ -1,9 +1,11 @@
-"""Components for computing derivatives of the Eikonax solver.
+r"""Components for computing derivatives of the Eikonax solver.
 
-This module contains two main components. Firstly, the `PartialDerivator` evaluates the partial
-derivatives of the global Eikonax update operator w.r.t. the parameter field and the corresponding
-solution vector obtained from a forward solve. The ``DerivativeSolver`` component makes use of
-the fixed point/adjoint property of the Eikonax solver to evaluate total parametric derivatives.
+This module contains two main components. Firstly, the
+[`PartialDerivator`][eikonax.derivator.PartialDerivator] evaluates the partial derivatives of the
+global Eikonax update operator $\mathbf{G}$ w.r.t. the parameter tensor field $\mathbf{M}$ and the
+corresponding solution vector $\mathbf{u}$ obtained from a forward solve. The
+[`DerivativeSolver`][eikonax.derivator.DerivativeSolver] component makes use of the fixed
+point/adjoint property of the Eikonax solver to evaluate total parametric derivatives.
 
 Classes:
     PartialDerivatorData: Settings for initialization of partial derivator
@@ -32,6 +34,8 @@ from . import corefunctions
 class PartialDerivatorData:
     """Settings for initialization of partial derivator.
 
+    See the [Forward Solver](../usage/solve.md) documentation for more detailed explanations.
+
     Attributes:
         softmin_order (int): Order of the softmin function applied to update candidates with
             identical, minimal arrival times.
@@ -49,7 +53,22 @@ class PartialDerivatorData:
 
 # ==================================================================================================
 class PartialDerivator(eqx.Module):
-    """Component for computing partial derivatives of the Godunov Update operator.
+    r"""Component for computing partial derivatives of the Godunov Update operator.
+
+    Given a tensor field $M$ and a solution vector $u$, the partial derivator computes the partial
+    derivatives of the global Eikonax update operator with respect to the solution vector,
+    $\mathbf{G}_u(\mathbf{u}, \mathbf{m})$, and the tensor field,
+    $\mathbf{G}_M(\mathbf{u}, \mathbf{M})$. All derivatives are computed on the vertex level,
+    exploiting the locality of interactions in the update operator (only adjacent simplices are
+    considered). Therefore, we can indeed assemble the complete derivative operators as parse data
+    structures, not just Jacobian-vector or vector-Jacobian products, within a single pass over the
+    computational mesh. Atomic functions on the vertex level are differentiated with Jax.
+
+    !!! info
+        For the computation of the derivatives, so-called 'self-updates' are disabled. These updates
+        occur when a vertex does not receive a lower update value from any direction than the value
+        it currently has. At the correct solution point, this case cannot occur due to the causality
+        of the update stencil.
 
     Methods:
         compute_partial_derivatives: Compute the partial derivatives of the Godunov update operator
@@ -168,7 +187,7 @@ class PartialDerivator(eqx.Module):
 
         Args:
             partial_derivative_solution (jax.Array): Raw data from partial derivative computation,
-                with shape (N, num_adjacent_simplices, 2), N depends on the number of identical
+                with shape `(N, num_adjacent_simplices, 2)`, N depends on the number of identical
                 update paths for the vertices in the mesh.
 
         Returns:
@@ -211,7 +230,7 @@ class PartialDerivator(eqx.Module):
 
         Args:
             partial_derivative_parameter (jax.Array): Raw data from partial derivative
-                computation, with shape (N, num_adjacent_simplices, dim, dim), N depends on the
+                computation, with shape `(N, num_adjacent_simplices, dim, dim)`, N depends on the
                 number of identical update paths for the vertices in the mesh.
 
         Returns:
@@ -248,7 +267,8 @@ class PartialDerivator(eqx.Module):
     ]:
         """Compute partial derivatives of the global update operator.
 
-        The method is a jitted and vectorized call to the `_compute_vertex_partial_derivative`
+        The method is a jitted and vectorized call to the
+        [`_compute_vertex_partial_derivative`][eikonax.derivator.PartialDerivator._compute_vertex_partial_derivatives]
         method.
 
         Args:
@@ -282,11 +302,11 @@ class PartialDerivator(eqx.Module):
         """Compute partial derivatives for the update of a single vertex.
 
         The method computes candidates for all respective subterms through calls to further methods.
-        These candidates are filtered for feyasibility by means of JAX filters.
+        These candidates are filtered for feasibility by means of JAX filters.
         The sofmin function (and its gradient) is applied to the directions of all optimal
         updates to ensure differentiability, other contributions are discarded.
         Lasty, the evaluated contributions are combined according to the form of the
-        "total differential" for the parrtial derivatives.
+        "total differential" for the partial derivatives.
 
         Args:
             solution_vector (jax.Array): Global solution vector
@@ -394,10 +414,10 @@ class PartialDerivator(eqx.Module):
         tensor_field: jtFloat[jax.Array, "num_simplices dim dim"],
         adjacency_data: jtInt[jax.Array, "4"],
     ) -> tuple[jtFloat[jax.Array, "4 2"], jtFloat[jax.Array, "4 dim dim"]]:
-        """Compute partial derivatives for all update candidates within an adjacent simplex.
+        r"""Compute partial derivatives for all update candidates within an adjacent simplex.
 
         The update candidates are evaluated according to the different candidates for the
-        optimization parameters lambda. Contributions are combined to the form of the involved
+        optimization parameters $\lambda$. Contributions are combined to the form of the involved
         total differentials.
 
         Args:
@@ -549,23 +569,95 @@ class PartialDerivator(eqx.Module):
 
 # ==================================================================================================
 class DerivativeSolver:
-    """Main component for obtaining gradients from partial derivatives.
+    r"""Main component for obtaining gradients from partial derivatives.
 
-    The Eikonax derivator computes partial derivatives of the global update operator with respect
-    to the solution vector and the parameter tensor field. At the fixed point of the iterative
-    update scheme, meaning the correct solution according to the discrete upwind scheme, these
-    parrial derivatives can be used to obtain the total Jacobian of the global update operator
-    with respect to the parameter tensor field. In practice, we are typically concerned with the
-    parametric gradient of a cost functional that comprises the solution vector. The partial
-    differential equation, which connects solution vector and parameter field, acts as a constraint
-    in this context. The partial derivator computes the the so-called adjoint variable in this
-    context, by solving a linear system of equation. The system matrix is obtained from the
-    partial derivative of the global update operator with respect to the solution vector.
+    The Eikonax [`PartialDerivator`][eikonax.derivator.PartialDerivator] computes partial
+    derivatives of the global update operator with respect
+    to the solution vector, $\mathbf{G}_u$, and the parameter tensor field, $\mathbf{G}_M$.
+    Now we exploit the facto that the obtained solution candidate from a forward solve
+    $\mathbf{u}\in\mathbb{R}^N$ is, up to a given accuracy, is a fixed point of the
+    global update operator. We further consider the scenario of $\mathbf{M}(\mathbf{m})$ being
+    dependent on some parameter $\mathbf{m}\in\mathbb{R}^M$. This means we can write $\mathbf{u}$ as
+    a function of $\mathbf{m}$, obeying the relation
+
+    $$
+        \mathbf{u}(\mathbf{m}) = \mathbf{G}(\mathbf{u}(\mathbf{m}), \mathbf{M}(\mathbf{m}))
+    $$
+
+    To obtain the Jacobian $\mathbf{J} = \frac{d\mathbf{u}}{d\mathbf{m}}\in\mathbb{R}^{N\times M}$,
+    we simply differentiate the fixed point relation,
+
+    $$
+        \mathbf{J} = \mathbf{G}_u\mathbf{J}
+        + \overbrace{\mathbf{G}_M\frac{d\mathbf{M}(\mathbf{m})}{d\mathbf{m}}}^{\mathbf{G}_m}
+        \quad\Leftrightarrow\quad \mathbf{J} = (\mathbf{I} - \mathbf{G}_u)^{-1}\mathbf{G}_m
+    $$
+
+    $\mathbf{G}_u$ and $\mathbf{G}_M$ are provided by the
+    [`PartialDerivator`][eikonax.derivator.PartialDerivator], whereas
+    $\frac{d\mathbf{M}}{d\mathbf{m}}$ is computed as the Jacobian of the
+    [`TensorField`][eikonax.tensorfield.TensorField] component.
+
+    We are typically not interested in the full Jacobian, but rather in the gradient of some
+    cost functional $l:\mathbb{R}^N\to\mathbb{R},\ l=l(\mathbf{u}(\mathbf{m}))$ with respect to
+    $\mathbf{m}$. The gradient is given as
+
+    $$
+        \mathbf{g}(\mathbf{m}) = \frac{d l}{d\mathbf{m}}
+        = \overbrace{\frac{d l}{d\mathbf{u}}}^{l_u^T}\mathbf{J}
+        = \overbrace{l_u^T(\mathbf{I} - \mathbf{G}_u)^{-1}}^{\mathbf{v}^T}\mathbf{G}_m.
+    $$
+
+    We can identify $\mathbf{v}$ as the adjoint variable, which is obtained by solving the linear
+    **discrete adjoint equation**,
+
+    $$
+        (\mathbf{I} - \mathbf{G}_u)^T\mathbf{v} = l_u.
+    $$
+
+    *Now comes the catch*: Through the strict causality of the Godunov update operator, we can find
+    a unique and consistent ordering of vertex indices, such that the solution at a vertex $i$ is
+    only informed by the solution at a vertex $j$, if $j$ occurs before $i$ in that ordering. The
+    matrix $\mathbf{G}_u$ has to form a directed, acyclic graph.
+
     Importantly, we can order the indices of the solution vector according to the size of the
     respective solution values. Because the update operator obeys upwind causality, the system
     matrix becomes triangular under such a permutation, and we can solve the linear system through
     simple back-substitution. In the context of an optimization problem, the right-hand-side is
     given as the partial derivative of the cost functional with respect to the solution vector.
+    this means that there is an orthogonal permutation matrix $\mathbf{P}$ such that for
+    $\bar{\mathbf{G}}_u = \mathbf{P}\mathbf{G}_u\mathbf{P}^T$ an entry $(\bar{\mathbf{G}}_u)_{ij}$
+    is only non-zero if $i > j$. In total, we can write
+
+    $$
+    \begin{align*}
+    (\mathbf{I}-\mathbf{G}_u)^T\mathbf{v} = \mathbf{l}_u &\Leftrightarrow
+    \mathbf{P}(\mathbf{I}-\mathbf{G}_u)^T\mathbf{P}^T
+    \overbrace{\mathbf{P}\mathbf{v}}^{\bar{\mathbf{v}}}
+    = \overbrace{\mathbf{P}\mathbf{l}_u}^{\bar{\mathbf{l}}_u} \nonumber \\
+    & \Leftrightarrow \overbrace{(\mathbf{I} - \bar{\mathbf{G}}_u)^T}^{\bar{\mathbf{A}}}\bar{v}
+    =\bar{\mathbf{l}}_u
+    \end{align*}
+    $$
+
+    where $\bar{\mathbf{A}}$ is an upper triangular matrix with unit diagonal. Hence, it is
+    invertible through simple back-substitution.
+
+    The `DerivativeSolver` component does exactly this: It sets up the matrices $\mathbf{P}$ and
+    $\bar{\mathbf{A}}$, permutates inputs/outputs, and solves the sparse linear system through
+    back-substitution.
+
+    !!! tip "Speedy gradients"
+        Given a solution vector $\mathbf{u}$, Eikonax computes derivatives with linear complexity.
+        Even more, for a given evaluation point, we can evaluate an arbitrary number of gradients
+        through simple backsubstitution. All matrices need to be assembled only once.
+
+    !!! info "Change in tooling"
+        In the `DerivativeSolver`, we leave JAX and fall back to the `numpy`/`scipy` stack. While
+        the sequential solver operation should not be mush slower on the CPU, we have to transfer
+        the data back grom the offloading device. We plan to implement a GPU-compatible solver with
+        [CuPy](https://cupy.dev/) in a future version, or in JAX as soon as it offers the necessary
+        linear algebra tools.
 
     Methods:
         solve: Solve the linear system for the adjoint variable
@@ -581,10 +673,10 @@ class DerivativeSolver:
             jtFloat[jax.Array, "num_sol_values"],
         ],
     ) -> None:
-        """Constructor for the derivative solver.
+        r"""Constructor for the derivative solver.
 
-        Initializes the causality-inspired permutation matrix, and afterwards the permuted system
-        matrix, which is triangular.
+        Initializes the causality-inspired permutation matrix $\mathbf{P}$, and afterwards the
+        permuted system matrix $\bar{\mathbf{A}}$, which is triangular.
 
         Args:
             solution (jax.Array | npt.NDArray): Obtained solution of the Eikonal equation
@@ -706,13 +798,13 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     @property
     def sparse_system_matrix(self) -> sp.sparse.csc_matrix:
-        """Get system matrix."""
+        r"""Get system matrix $\bar{\mathbf{A}}\in\mathbb{R}^{N\times N}$."""
         return self._sparse_system_matrix
 
     # ----------------------------------------------------------------------------------------------
     @property
     def sparse_permutation_matrix(self) -> sp.sparse.csc_matrix:
-        """Get permutation matrix."""
+        r"""Get permutation matrix $\mathbf{P}\in\mathbb{R}^{N\times N}$."""
         return self._sparse_permutation_matrix
 
 

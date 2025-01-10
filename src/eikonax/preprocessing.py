@@ -1,7 +1,8 @@
 """Test mesh creation and preparation for Eikonax solver runs.
 
-The creation of test meshes can be done with any other tool. The format of the required adjacency
-data for Eikonax is strict, however.
+!!! info
+    The creation of test meshes can be done with any other tool. The format of the required
+    adjacency data for Eikonax is strict, however.
 
 Functions:
     create_test_mesh: Create a simple test mesh with Scipy's Delauny functionality.
@@ -26,9 +27,11 @@ def create_test_mesh(
     num_points_x: Annotated[int, Is[lambda x: x >= 2]],
     num_points_y: Annotated[int, Is[lambda x: x >= 2]],
 ) -> tuple[jtFloat[npt.NDArray, "num_vertices dim"], jtInt[npt.NDArray, "num_simplices 3"]]:
-    """Create a simple test mesh with Scipy's Delauny functionality.
+    """Create a simple test mesh with Scipy's Delaunay functionality.
 
-    This methods creates a imple square mesh with Delauny triangulation.
+    This methods creates a simple square mesh with Scipy's
+    [Delaunay](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.Delaunay.html)
+    triangulation.
 
     Args:
         mesh_bounds_x (Iterable[float, float]): Mesh bounds for x-direction
@@ -76,7 +79,7 @@ def get_adjacent_vertex_data(
 
     Returns:
         npt.NDArray: Array containing for each vertex the vertex and simplex indices of all
-            adjacent simplices. Dimension is (num_vertices, max_num_adjacent_simplices, 4),
+            adjacent simplices. Dimension is `(num_vertices, max_num_adjacent_simplices, 4)`,
             where the 4 entries contain the index of an adjacent simplex and the associated
             vertices. To ensure homogeneous arrays, all vertices have the same (maximum) number
             of adjacent simplices. Non-existing simplices are buffered with the value -1.

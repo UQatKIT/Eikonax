@@ -4,6 +4,7 @@
 # -- Site metadata ---------------------------------------------------------------------------------
 docs_dir: docs/source
 site_name: Eikonax
+site_author: Maximilian Kruse
 site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 repo_url: https://github.com/UQatKIT/Eikonax
 repo_name: Eikonax
@@ -52,6 +53,9 @@ markdown_extensions:
   - pymdownx.tilde # Subscripts
   - pymdownx.snippets # Embed content from arbitrary files like source code
   - pymdownx.superfences # Nesting of content blocks
+  - pymdownx.emoji: # Use emojis
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.highlight: # Syntax highlighting for code blocks
       anchor_linenums: true
       line_spans: __span
@@ -81,8 +85,6 @@ plugins:
             members: true
             members_order: source
             merge_init_into_class: false
-            relative_crossrefs: true
-            scoped_crossrefs: true
             separate_signature: true
             show_bases: true
             show_category_heading: false

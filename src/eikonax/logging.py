@@ -1,5 +1,9 @@
 """Custom logging, based on Python's built-in logger.
 
+!!! info
+    Logging can only be used for non-jitted solver loops, it is thus only recommended for eploratory
+    runs on small test problems
+
 Classes:
     LoggerSettings: Data class for logger settings
     LogValue: Data class for log values
@@ -49,8 +53,9 @@ class Logger:
 
     This class is a minimal wrapper around the Python logger class. It provides handles for logging
     to the console or a file, depending on the user settings. The class's main interface is the
-    `log` method, which takes a list of `LogValue` objects and logs them with the given values and
-    string formats.
+    [`log`][eikonax.logging.Logger.log] method, which takes a list of
+    [`LogValue`][eikonax.logging.LogValue] objects and logs them with the given values and string
+    formats.
 
     Methods:
         log: Log the values in the log_values list

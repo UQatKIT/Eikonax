@@ -10,11 +10,12 @@ u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
 \end{gather*}
 $$
 
-The iterative solver is based on Godunov-type upwinding and employs global Jacobi updates, which can be efficiently ported to SIMD architectures.
-In addition, Eikonax implements an efficient algorithm for the evaluation of parametric derivatives, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. Through exploitation of causality in the forward solution, Eikonax can compute this derivatives through discrete adjoint on timescales much smaller than those for the forward solve.
+The iterative solver is based on *Godunov-type upwinding* and employs global *Jacobi updates*, which can be efficiently ported to SIMD architectures.
+In addition, Eikonax implements an efficient algorithm for the evaluation of *parametric derivatives*, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. More precisely, we assume that the tensor field is parameterized through some vector $\mathbf{m}$, s.th. we compute $\frac{du}{d\mathbf{m}} = \frac{du}{d\mathbf{M}}\frac{\mathbf{M}}{d\mathbf{m}}$. This make Eikonax particularly suitable for the inverse problem setting, where derivative information is typically indispensable for efficient solution procedures.
+Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
 
-!!! note "The JAX in Eikonax"
-    Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading off relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
+!!! tip "The JAX in Eikonax"
+    Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
 
 ## Installation and Development
 
@@ -23,7 +24,7 @@ Eikonax is deployed as a **python package**, simply install via
 pip install eikonax
 ```
 
-For **development**, we recommend using the great [**uv**](https://docs.astral.sh/uv/) project management tool, for with Eikonax provides a universal lock file. To set up a reproducible environment, run
+For **development**, we recommend using the great [**uv**](https://docs.astral.sh/uv/) project management tool, for which Eikonax provides a universal lock file. To set up a reproducible environment, run
 ```bash
 uv sync
 ```
@@ -31,21 +32,21 @@ in the project root directory.
 
 ## Overview of Resources
 
-
-### Usage
+#### Usage
 
 Under Usage, we provide guides walkthroughs through the functionalities of Eikonax.
 The [Forward Solver](usage/solve.md) document explains in detail how to set up Eikonax for solving the Eikonal equation. [Parametric Derivatives](usage/derivatives.md) demonstrates how to differentiate the solver, given a computed forward solution.
 
-### Background
+#### Background
 
 This section discusses more technical topics of Eikonax. The [Theory](background/theory.md) section elucidates the mathematical and 
 algorithmic backbone of the library. In [Software](background/setup.md), we show how the theoretical considerations translate to the design and functionality of Eikonax.
 
-### API Reference
+#### API Reference
 
 The API reference contains detailed explanations of all software components of Eikonax, and how to use them.
 
 ## Acknowledgement and License
 
-Eikonax is being developed in the research group [**Uncertainty Quantification**](https://www.scc.kit.edu/forschung/uq.php) at KIT. Itis distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
+Eikonax is being developed in the research group [Uncertainty Quantification](https://www.scc.kit.edu/forschung/uq.php) at KIT.
+It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
