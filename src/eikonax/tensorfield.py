@@ -1,13 +1,24 @@
-"""Composable and differentiable parameter fields.
+r"""Composable and differentiable parameter tensor fields.
 
 This module provides ABCs and implementations for the creation of differentiable parameter fields
-used in Eikonax. To provide sufficient flexibility, the actual tensor field component, implemented
-in `TensorField`, comprises two main sub-components. Firstly, we implement a vector-to-simplices
-map, adhering to the protocol defined in `BaseVectorToSimplicesMap`. This component maps the global
-parameter vector to the local parameters of a given simplex. Secondly, we implement a simplex tensor
-component, adhering to the protocol defined in `BaseSimplexTensor`. This component assembles the
-tensor field for a given simplex and a set of parameters for that simplex. The relevant parameters
-are provided by the `VectorToSimplicesMap` component from the global parameter vector.
+used in Eikonax. Recall that for the Eikonax solver, and particularly parameteric derivatives, we
+require an input tensor field
+$\mathbf{M}: \mathbb{R}^M \times \mathbb{N}_0 \to \mathbb{S}_+^{d\times d}$. This means that the
+tensor field is a mapping $\mathbf{M}(\mathbf{m},s)$ that assigns, given a global parameter vector
+$\mathbf{m}$, an s.p.d tensor to every simplex $s$ in the mesh. To allow for sufficient flexibility
+in the choice of tensor field, we implement it as a composition of two main components.
+
+1. [`BaseVectorToSimplicesMap`][eikonax.tensorfield.BaseVectorToSimplicesMap] provides the interface
+    for a mapping from the global parameter vector $\mathbf{m}$ to the local parameter values
+    $\mathbf{m}_s$ required to assemble the tensor $\mathbf{M}_s$ for simplex $s$.
+2. [`BaseSimplexTensor`][eikonax.tensorfield.BaseSimplexTensor] provides the interface for the
+    assembly of the local tensor $\mathbf{M}_s$, given the local contributions $\mathbf{m}_s$ and a
+    simplex s.
+
+Concrete implementations of both components are used to initialize the
+[`TensorField`][eikonax.tensorfield.TensorField] object, which vectorizes and differentiates them
+using JAX, to provide the mapping $\mathbf{M}(\mathbf{m})$ and its Jacobian tensor
+$\frac{d \mathbf{M}}{d \mathbf{m}}$.
 
 Classes:
     BaseVectorToSimplicesMap: ABC interface contract for vector-to-simplices maps
@@ -37,6 +48,10 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
     Every component derived from this class needs to implement the `map` method, which maps returns
     the relevant parameters for a given simplex from the global parameter vector.
 
+    !!! note
+        Eikonax assumes that the mapping from global to local parameters is linear, so that
+        a parametric derivatives does not have to be provided.
+
     Methods:
         map: Interface for vector-so-simplex mapping
     """
@@ -50,7 +65,7 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
 
         For the given `simplex_ind`, return those parameters from the global parameter vector that
         are relevant for the simplex. This methods need to be broadcastable over `simplex_ind` by
-        JAX (with vmap).
+        JAX (with `vmap`).
 
         Args:
             simplex_ind (jax.Array): Index of the simplex under consideration
@@ -68,17 +83,17 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
 
 # --------------------------------------------------------------------------------------------------
 class LinearScalarMap(BaseVectorToSimplicesMap):
-    """Simple one-to-one map from global to simplex parameters.
+    r"""Simple one-to-one map from global to simplex parameters.
 
-    Every simplex takes exactly one parameter, which is sorted in the global parameter in the same
-    order as the simplices.
+    Every simplex takes exactly one parameter $m_s$, which is sorted in the global parameter
+    in the same order as the simplices, meaning that $m_s = \mathbf{m}[s]$.
     """
 
     # ----------------------------------------------------------------------------------------------
     def map(
         self,
         simplex_ind: jtInt[jax.Array, ""],
-        parameters: jtReal[jax.Array, "num_parameters_local"],
+        parameters: jtReal[jax.Array, "num_parameters"],
     ) -> jtReal[jax.Array, ""]:
         """Return relevant parameters for a given simplex.
 
@@ -99,9 +114,12 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
     `SimplexTensor` components assemble the tensor field for a given simplex and a set of parameters
     for that simplex. The relevant parameters are provided by the `VectorToSimplicesMap` component
-    from the global parameter vector. Note that this class provides the metric tensor as used in the
-    inner product for the update stencil of the eikonal equation. This is the INVERSE of the
-    conductivity tensor, which is the actual tensor field in the eikonal equation.
+    from the global parameter vector.
+
+    !!! note
+        Tis class provides the metric tensor as used in the inner product for the update stencil of
+        the eikonal equation. This is the **INVERSE** of the conductivity tensor, which is the
+        actual tensor field in the eikonal equation.
 
     Methods:
         assemble: Assemble the tensor field for a given simplex and parameters
@@ -122,10 +140,10 @@ class BaseSimplexTensor(ABC, eqx.Module):
         simplex_ind: jtInt[jax.Array, ""],
         parameters: jtFloat[jax.Array, "num_parameters_local"],
     ) -> jtFloat[jax.Array, "dim dim"]:
-        """Assemble the tensor field for given simplex and parameters.
+        r"""Assemble the tensor field for given simplex and parameters.
 
-        Given a parameter array of size n_local, the methods returns a tensor of size dim x dim.
-        The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
+        Given a parameter array of size $m_s$, the methods returns a tensor of size $d\times d$.
+        The method needs to be broadcastable over `simplex_ind` by JAX (with `vmap`).
 
         Args:
             simplex_ind (jax.Array): Index of the simplex under consideration
@@ -146,11 +164,11 @@ class BaseSimplexTensor(ABC, eqx.Module):
         simplex_ind: jtInt[jax.Array, ""],
         parameters: jtFloat[jax.Array, "num_parameters_local"],
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
-        """Parametric derivative of the `assemble` method.
+        r"""Parametric derivative of the `assemble` method.
 
-        Given a parameter array of size n_local, the methods returns a Jacobian tensor of size
-        dim x dim x n_local. The method needs to be broadcastable over `simplex_ind` by JAX
-        (with vmap).
+        Given a parameter array of size $m_s$, the methods returns a Jacobian tensor of size
+        $d\times d\times m_s$. The method needs to be broadcastable over `simplex_ind` by JAX
+        (with `vmap`).
 
         Args:
             simplex_ind (jax.Array): Index of the simplex under consideration
@@ -168,9 +186,10 @@ class BaseSimplexTensor(ABC, eqx.Module):
 
 # --------------------------------------------------------------------------------------------------
 class LinearScalarSimplexTensor(BaseSimplexTensor):
-    """SimplexTensor implementation relying on one parameter per simplex.
+    r"""SimplexTensor implementation relying on one parameter per simplex.
 
-    The simplex tensor is assembled as parameter * Identity for each simplex.
+    Given a scalar parameter $m_s$, the tensor field is assembled as $m_s \cdot \mathbf{I}$, where
+    $\mathbf{I}$ is the identity matrix.
 
     Methods:
         assemble: Assemble the tensor field for a parameter vector
@@ -180,10 +199,9 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
     def assemble(
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim"]:
-        """Assemble tensor for given simplex as parameter*Identity.
+        """Assemble tensor for given simplex.
 
-        the `parameters` argument is a scalar here, and `_simplex_ind` is not used. The method needs
-        to be broadcastable over `simplex_ind` by JAX (with vmap).
+        the `parameters` argument is a scalar here, and `_simplex_ind` is not used.
 
         Args:
             _simplex_ind (jax.Array): Index of simplex under consideration (not used)
@@ -200,8 +218,6 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
 
-        The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
-
         Args:
             _simplex_ind (jax.Array): Index of simplex under consideration (not used)
             _parameters (jax.Array): Parameter (scalar) for tensor assembly
@@ -215,9 +231,10 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
 
 # --------------------------------------------------------------------------------------------------
 class InvLinearScalarSimplexTensor(BaseSimplexTensor):
-    """SimplexTensor implementation relying on one parameter per simplex.
+    r"""SimplexTensor implementation relying on one parameter per simplex.
 
-    The simplex tensor is assembled as 1/parameter * Identity for each simplex.
+    Given a scalar parameter $m_s$, the tensor field is assembled as
+    $\frac{1}{m_s} \cdot \mathbf{I}$, where $\mathbf{I}$ is the identity matrix.
 
     Methods:
         assemble: Assemble the tensor field for a parameter vector
@@ -227,10 +244,9 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
     def assemble(
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim"]:
-        """Assemble tensor for given simplex as 1/parameter*Identity.
+        """Assemble tensor for given simplex.
 
-        the `parameters` argument is a scalar here, and `_simplex_ind` is not used. The method needs
-        to be broadcastable over `simplex_ind` by JAX (with vmap).
+        The `parameters` argument is a scalar here, and `_simplex_ind` is not used.
 
         Args:
             _simplex_ind (jax.Array): Index of simplex under consideration (not used)
@@ -246,8 +262,6 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
         """Parametric derivative of the `assemble` method.
-
-        The method needs to be broadcastable over `simplex_ind` by JAX (with vmap).
 
         Args:
             _simplex_ind (jax.Array): Index of simplex under consideration (not used)
@@ -266,17 +280,18 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
 
 # ==================================================================================================
 class TensorField(eqx.Module):
-    """Tensor field component.
+    r"""Tensor field component.
 
     Tensor fields combine the functionality of vector-to-simplices maps and simplex tensors
     according to the composition over inheritance principle. They constitute the full mapping
-    from the global parameter vector to the tensor field over all mesh faces (simplices). In
-    addition, they provide the parametric derivative of that mapping, and assemble the full
-    parameter-to-solution Jacobian of the Eikonax solver from a given partial derivative of
-    the solution vector w.r.t. the tensor field. This introduces some degree of coupling to the
-    eikonax solver, but is the simplest interface for computation of the total derivative
-    according to the chain rule. More detailed explanations are given in the `assemble_jacobian`
-    method.
+    $\mathbf{M}(\mathbf{m})$ from the global parameter vector to the tensor field over all mesh
+    faces (simplices). In addition, they provide the parametric derivative
+    $\frac{d\mathbf{M}}{\mathbf{m}}$ of that mapping, and assemble the full parameter-to-solution
+    partial Jacobian $\mathbf{G}_m$ from a given partial derivative of the solution vector w.r.t.
+    the tensor field $\mathbf{G}_M$. This introduces some degree of coupling to the eikonax solver,
+    but is the simplest interface for computation of the total derivative according to the chain
+    rule. More detailed explanations are given in the
+    [`assemble_jacobian`][eikonax.tensorfield.TensorField.assemble_jacobian] method.
 
     Methods:
         assemble_field: Assemble the tensor field for the given parameter vector
@@ -348,22 +363,32 @@ class TensorField(eqx.Module):
         ],
         parameter_vector: jtFloat[jax.Array | npt.NDArray, "num_parameters_global"],
     ) -> sp.sparse.coo_matrix:
-        """Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
+        r"""Assemble partial derivative of the Eikonax solution vector w.r.t. parameters.
 
-        The total derivative of the solution vector w.r.t. the global parameter vector is given by
-        the chain rule of differentiation. The Eikonax Derivator component evaluates the derivative
-        of the solution vector w.r.t. the tensor field, which is the output of this component.
+        The total derivative of the Update operator w.r.t. the global parameter vector is given by
+        the chain rule of differentiation,
+        $\mathbf{G}_m = \mathbf{G}_M \frac{d\mathbf{M}}{d\mathbf{m}}$
+        The Eikonax [`PartialDerivator`][eikonax.derivator.PartialDerivator] component evaluates
+        the derivative of the solution vector w.r.t. the tensor field.
         The tensor field assembles the Jacobian tensor of the tensor field w.r.t. to the global
-        parameter vector, and chains it with the solution-tensor derivative in a vectorized form.
+        parameter vector, and chains it with the solution-to-tensor derivative in a vectorized form.
         All computations are done in a sparse matrix format.
-        Consider given a solution-tensor derivative of G_1 of shape N x K x D x D, where N is the
-        number of vertices, K is the number of simplices, and D is the physical dimension of the
-        tensor field. This component internally assembles the tensor-parameter derivative G_2 of
-        shape K x D x D x M, where M is the number of parameters. The total derivative is then
-        computed as a tensor product of G_1 and G_2 over their last and first three dimensions,
-        respectively. The output is a sparse matrix of shape N x M, returned as a scipy COO matrix.
-        The assembly is rather involved, so we handle it internally in this component, a the
-        expense of introducing some additional coupling to the Eikonax Derivator
+        Consider given a solution-to-tensor derivative of $\mathbf{G}_M$ of shape
+        $N \times K \times d \times d$, where $N$ is the number of vertices, $K$ is the number of
+        simplices, and $d$ is the physical dimension of the tensor field. This method internally
+        assembles the tensor-to-parameter derivative $\frac{d\mathbf{M}}{d\mathbf{m}}$ of
+        shape $K \times d \times d \times M$, where $M$ is the number of parameters. The total
+        derivative is then computed as a tensor product of
+        $\mathbf{G}_M$ and $\frac{d\mathbf{M}}{d\mathbf{m}}$ over their last and first three
+        dimensions,respectively. The output is a sparse matrix of shape N x M, returned as a
+        `scipy COO matrix`. The assembly is rather involved, so we handle it internally in this
+        component, at the expense of introducing some additional coupling to the Eikonax Derivator
+
+        !!! warning "Will be changed"
+            The `PartialDerivator` returns a compressed representation of $\mathbf{G}_M$, which
+            is hard to handle with standardized tensor product operations. Reducing the compression
+            might allow for a more transparent interface at this point.
+
 
         Args:
             number_of_vertices (int): Number of vertices in the mesh
@@ -404,9 +429,9 @@ class TensorField(eqx.Module):
         derivative_solution_tensor_values: jtFloat[jax.Array, "num_values"],
         parameter_vector: jtFloat[jax.Array, "num_parameters_global"],
     ) -> tuple[jtFloat[jax.Array, "..."], jtInt[jax.Array, "..."]]:
-        """Compute the partial derivative of the the tensor field w.r.t. to global parameter vector.
+        r"""Compute the partial derivative $\frac{d\mathbf{M}}{d\mathbf{m}}$.
 
-        Simplex-level derivatives are computed for all provided `simplex_inds' to match the
+        Simplex-level derivatives are computed for all provided `simplex_inds` to match the
         solution-tensor derivatives obtained from the Eikonax derivator.
 
         Args:

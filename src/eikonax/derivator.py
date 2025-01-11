@@ -140,6 +140,13 @@ class PartialDerivator(eqx.Module):
         the solution of the Eikonax equation, and therefore causality within the Godunov update
         scheme, is known.
 
+        !!! note
+            The derivator expects the metric tensor field as used in the inner product for the
+            update stencil of the eikonal equation. This is the **INVERSE** of the conductivity
+            tensor, which is the actual tensor field in the eikonal equation. The
+            [`Tensorfield`][eikonax.tensorfield.TensorField] component provides the inverse tensor
+            field.
+
         Args:
             solution_vector (jax.Array): Current solution
             tensor_field (jax.Array): Parameter field
@@ -619,13 +626,7 @@ class DerivativeSolver:
     a unique and consistent ordering of vertex indices, such that the solution at a vertex $i$ is
     only informed by the solution at a vertex $j$, if $j$ occurs before $i$ in that ordering. The
     matrix $\mathbf{G}_u$ has to form a directed, acyclic graph.
-
-    Importantly, we can order the indices of the solution vector according to the size of the
-    respective solution values. Because the update operator obeys upwind causality, the system
-    matrix becomes triangular under such a permutation, and we can solve the linear system through
-    simple back-substitution. In the context of an optimization problem, the right-hand-side is
-    given as the partial derivative of the cost functional with respect to the solution vector.
-    this means that there is an orthogonal permutation matrix $\mathbf{P}$ such that for
+    This means that there is an orthogonal permutation matrix $\mathbf{P}$ such that for
     $\bar{\mathbf{G}}_u = \mathbf{P}\mathbf{G}_u\mathbf{P}^T$ an entry $(\bar{\mathbf{G}}_u)_{ij}$
     is only non-zero if $i > j$. In total, we can write
 
@@ -701,12 +702,16 @@ class DerivativeSolver:
     def solve(
         self, right_hand_side: jtFloat[jax.Array | npt.NDArray, "num_vertices"]
     ) -> jtFloat[npt.NDArray, "num_parameters"]:
-        """Solve the linear system for the parametric gradient.
+        r"""Solve the linear system for the parametric gradient.
 
-        The right-hand-side needs to be given as the partial derivative of the prescribed cost
-        functional w.r.t. the solution vector. This right-hand-side is permutated according to the
-        causality of the solution. Subsequently, the linear system can be solved through (sparse)
-        back-substitution. The solution is then permutated back to the original ordering.
+        Following the notation from the class docstring,this method solves the linear system for
+        the adjoint variable $\mathbf{v}$. Given a right-hand-side $\mathbf{l}_u$, this is a three-
+        step process:
+
+        1. Permute the right hand side $\bar{l}_u = \mathbf{P}l_u$
+        2. Solve the linear system $\bar{\mathbf{A}}\bar{\mathbf{v}} = \bar{l}_u$
+        3. Permute solution back to the original ordering
+            $\mathbf{v} = \mathbf{P}^T\bar{\mathbf{v}}$
 
         Args:
             right_hand_side (jax.Array | npt.NDArray): RHS for the linear system solve
@@ -728,13 +733,7 @@ class DerivativeSolver:
     def _assemble_permutation_matrix(
         self, solution: jtFloat[npt.NDArray, "num_vertices"]
     ) -> sp.sparse.csc_matrix:
-        """Construct permutation matrix for index ordering.
-
-        From a given solution vector, we know from the properties of the upwind update scheme
-        that causaility is given through the size of the respective solution values. This means
-        that nodes with higher solution values are only influenced by nodes with lower solution
-        values. With respect to linear system solves involving the global update operator,
-        this means that we can obtain triangular matrices through an according permutation.
+        r"""Construct permutation matrix $\mathbf{P}$ for index ordering.
 
         Args:
             solution (npt.NDArray): Obtained solution of the eikonal equation
@@ -763,12 +762,9 @@ class DerivativeSolver:
         ],
         num_points: int,
     ) -> sp.sparse.csc_matrix:
-        """Assemble system matrix for gradient solver.
+        r"""Assemble system matrix $\bar{\mathbf{A}}$ for gradient solver.
 
-        The parametric gradient of the global update operator is obtained from a linear system
-        solve, where the system matrix is given as $(I-G_u)^T$, where $G_u$ is the partial
-        derivative of the global update operator with respect to the solution vector. According to
-        the causality of the solution, we can permutate the system matrix to a triangular form.
+        Before invoking this method, the permutation matrix $\mathbf{P}$ must be initialized.
 
         Args:
             sparse_partial_update_solution (tuple[npt.NDArray, npt.NDArray, npt.NDArray]):

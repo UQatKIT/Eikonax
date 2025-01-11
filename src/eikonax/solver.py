@@ -109,9 +109,7 @@ class Solver(eqx.Module):
     which is important for the efficient computation of parametric derivatives.
     The solver class is mainly a wrapper around different loop constructs, which call vectorized
     forms of the methods implemented in the [`corefunctions`][eikonax.corefunctions] module. These
-    loop constructs evolve around the loop functionality provided by JAX. Furthermore, the solver
-    class is based on the [equinox Module class](https://docs.kidger.site/equinox/api/module/module/),
-    which allows for usage of OOP features in JAX.
+    loop constructs evolve around the loop functionality provided by JAX.
 
     Methods:
         run: Main interface for Eikonax runs.
@@ -175,6 +173,13 @@ class Solver(eqx.Module):
 
         The method initializes the solution vector and dispatches to the run method for the
         selected loop type.
+
+        !!! note
+            The derivator expects the metric tensor field as used in the inner product for the
+            update stencil of the eikonal equation. This is the **INVERSE** of the conductivity
+            tensor, which is the actual tensor field in the eikonal equation. The
+            [`Tensorfield`][eikonax.tensorfield.TensorField] component provides the inverse tensor
+            field.
 
         Args:
             tensor_field (jax.Array): Parameter field for which to solve the Eikonal equation.
