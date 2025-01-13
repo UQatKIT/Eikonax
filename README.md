@@ -43,7 +43,7 @@ in the project root directory.
 
 ## Documentation
 
-The [documentation](docs/build/index.html) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
+The [documentation](https://uqatkit.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
 
 
 ## Acknowledgement and License
