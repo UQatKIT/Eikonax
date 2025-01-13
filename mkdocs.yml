@@ -34,6 +34,7 @@ theme:
         name: Switch to light mode
   favicon: images/radio_tower.png
   icon:
+    annotation: material/plus-circle
     logo: material/radio-tower
     repo: material/git
 

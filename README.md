@@ -11,8 +11,14 @@ u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
 $$
 
 The iterative solver is based on *Godunov-type upwinding* and employs global *Jacobi updates*, which can be efficiently ported to SIMD architectures.
-In addition, Eikonax implements an efficient algorithm for the evaluation of *parametric derivatives*, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. More precisely, we assume that the tensor field is parameterized through some vector $\mathbf{m}$, s.th. we compute $\frac{du}{d\mathbf{m}} = \frac{du}{d\mathbf{M}}\frac{\mathbf{M}}{d\mathbf{m}}$. This make Eikonax particularly suitable for the inverse problem setting, where derivative information is typically indispensable for efficient solution procedures.
+In addition, Eikonax implements an efficient algorithm for the evaluation of *parametric derivatives*, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. More precisely, we assume that the tensor field is parameterized through some vector $\mathbf{m}$, s.th. we compute $\frac{du}{d\mathbf{m}} = \frac{du}{d\mathbf{M}}\frac{d\mathbf{M}}{d\mathbf{m}}$. This make Eikonax particularly suitable for the inverse problem setting, where derivative information is typically indispensable for efficient solution procedures.
 Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
+
+### Key Features
+:material-checkbox-marked-circle-outline: &nbsp; **Supports anisotropic condcuctivity tensors** <br>
+:material-checkbox-marked-circle-outline: &nbsp; **Works on irregular meshes** <br>
+:material-checkbox-marked-circle-outline: &nbsp; **GPU offloading of performance-relevant computations** <br>
+:material-checkbox-marked-circle-outline: &nbsp; **Super fast derivatives through causality-informed adjoints**
 
 Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
 
@@ -29,6 +35,8 @@ For **development**, we recommend using the great [**uv**](https://docs.astral.s
 uv sync
 ```
 in the project root directory.
+
+## Documentation
 
 The [**documentation**](docs/build/index.html) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
 
