@@ -20,18 +20,22 @@ Through exploitation of causality in the forward solution, Eikonax can compute t
 :heavy_check_mark: &nbsp; **GPU offloading of performance-relevant computations** <br>
 :heavy_check_mark: &nbsp; **Super fast derivatives through causality-informed adjoints**
 
+<br>
+
 > [!TIP] 
 > Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
+
+<br>
 
 
 ## Getting Started
 
-Eikonax is deployed as a **python package**, simply install via
+Eikonax is deployed as a python package, simply install via
 ```bash
 pip install eikonax
 ```
 
-For **development**, we recommend using the great [**uv**](https://docs.astral.sh/uv/) project management tool, for which Eikonax provides a universal lock file. To set up a reproducible environment, run
+For development, we recommend using the great [uv](https://docs.astral.sh/uv/) project management tool, for which Eikonax provides a universal lock file. To set up a reproducible environment, run
 ```bash
 uv sync
 ```
@@ -39,7 +43,7 @@ in the project root directory.
 
 ## Documentation
 
-The [**documentation**](docs/build/index.html) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
+The [documentation](docs/build/index.html) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
 
 
 ## Acknowledgement and License
