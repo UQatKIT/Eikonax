@@ -20,7 +20,8 @@ Through exploitation of causality in the forward solution, Eikonax can compute t
 :heavy_check_mark: &nbsp; **GPU offloading of performance-relevant computations** <br>
 :heavy_check_mark: &nbsp; **Super fast derivatives through causality-informed adjoints**
 
-Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
+> [!TIP] 
+> Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
 
 
 ## Getting Started
