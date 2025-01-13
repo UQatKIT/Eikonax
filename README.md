@@ -15,10 +15,10 @@ In addition, Eikonax implements an efficient algorithm for the evaluation of *pa
 Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
 
 ### Key Features
-:material-checkbox-marked-circle-outline: &nbsp; **Supports anisotropic condcuctivity tensors** <br>
-:material-checkbox-marked-circle-outline: &nbsp; **Works on irregular meshes** <br>
-:material-checkbox-marked-circle-outline: &nbsp; **GPU offloading of performance-relevant computations** <br>
-:material-checkbox-marked-circle-outline: &nbsp; **Super fast derivatives through causality-informed adjoints**
+:heavy_check_mark: &nbsp; **Supports anisotropic condcuctivity tensors** <br>
+:heavy_check_mark: &nbsp; **Works on irregular meshes** <br>
+:heavy_check_mark: &nbsp; **GPU offloading of performance-relevant computations** <br>
+:heavy_check_mark: &nbsp; **Super fast derivatives through causality-informed adjoints**
 
 Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
 
