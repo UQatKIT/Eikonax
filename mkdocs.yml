@@ -2,7 +2,7 @@
 # == Configuration for static site generation with MKDocs ==========================================
 # ==================================================================================================
 # -- Site metadata ---------------------------------------------------------------------------------
-docs_dir: docs/source
+docs_dir: docs/
 site_name: Eikonax
 site_author: Maximilian Kruse
 site_description: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
