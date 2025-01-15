@@ -1,3 +1,5 @@
+[![Docs](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml/badge.svg)](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml)
+
 # Eikonax: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 
 Eikonax is a pure Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
