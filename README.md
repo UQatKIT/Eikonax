@@ -15,7 +15,7 @@ In addition, Eikonax implements an efficient algorithm for the evaluation of *pa
 Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
 
 ### Key Features
-:heavy_check_mark: &nbsp; **Supports anisotropic condcuctivity tensors** <br>
+:heavy_check_mark: &nbsp; **Supports anisotropic conductivity tensors** <br>
 :heavy_check_mark: &nbsp; **Works on irregular meshes** <br>
 :heavy_check_mark: &nbsp; **GPU offloading of performance-relevant computations** <br>
 :heavy_check_mark: &nbsp; **Super fast derivatives through causality-informed adjoints**
