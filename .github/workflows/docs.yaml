@@ -16,7 +16,6 @@ jobs:
   # Build documentation and upload artifact
   build:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
       - name: Checkout code
         id: checkout-code
@@ -41,7 +40,6 @@ jobs:
   # Deploy artifact to Github Pages
   deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.ref == 'refs/heads/main' }}
     needs: build
     permissions:
       pages: write
