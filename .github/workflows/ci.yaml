@@ -2,31 +2,46 @@ name: CI
 run-name: Format code with Ruff and run tests with Pytest
 
 on:
-  [push, pull_request]
+  push:
+    branches:
+    - main
+  pull_request:
+    branches:
+    - main
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        id: checkout-code
-        uses: actions/checkout@v4
-      - name: Install uv
-        id: setup-uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - name: Install Ruff
-        id: install-ruff
-        run: uv add ruff
-      - name: Format code with Ruff
-        id: format-ruff
-        run: uv run ruff format
+    - name: Checkout code
+      id: checkout-code
+      uses: actions/checkout@v4
+    - name: Install uv
+      id: setup-uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Install Ruff
+      id: install-ruff
+      run: uv add ruff
+    - name: Format code with Ruff
+      id: format-ruff
+      run: uv run ruff format
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkcontrol flow logic
-        run: |
-          echo "${{ github.head_ref }}"
-          echo "${{ github.ref_name }}"
+    - name: Checkout code
+      id: checkout-code
+      uses: actions/checkout@v4
+    - name: Install uv
+      id: setup-uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+    - name: Install dependencies
+      id: install-deps
+      run: uv sync --dev
+    - name: Run tests with Pytest
+      id: run-tests
+      run: uv run pytest
 
