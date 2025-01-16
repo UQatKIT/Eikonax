@@ -24,7 +24,6 @@ jobs:
         run: uv run ruff format
   test:
     runs-on: ubuntu-latest
-    needs: setup-environment
     steps:
       - name: Checkcontrol flow logic
         run: |
