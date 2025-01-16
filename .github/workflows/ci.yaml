@@ -20,7 +20,7 @@ jobs:
           enable-cache: true
       - if: ${{ steps.setup-uv.outputs.cache-hit != 'true'}}
         name: Install project dependencies
-        run: echo "${{ steps.setup-uv.outputs.cache-hit }}"
+        run: echo "$steps.setup-uv.outputs.cache-hit"
         #run: uv sync --all-extras --dev
   formatting:
     runs-on: ubuntu-latest
