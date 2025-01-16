@@ -1,5 +1,5 @@
 # -- Github Workflow for Documentation Deployment ------------------------------------------------------
-# Docs are built with MkDocs and deployed to Github Pages 
+# Docs are built with MkDocs and deployed to Github Pages
 
 name: Docs
 run-name: Build and deploy MkDocs documentation
@@ -8,40 +8,40 @@ run-name: Build and deploy MkDocs documentation
 on:
   workflow_dispatch:
   push:
-    branches:
-    - main
+    tags:
+      - v*
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
-
   # Build documentation and upload artifact
   build:
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
     steps:
-    - name: Checkout code
-      id: checkout-code
-      uses: actions/checkout@v4
-    - name: Install uv
-      id: setup-uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-    - name: Install dependencies
-      id: install-deps
-      run: uv sync --only-group docs
-    - name: Build MkDocs documentation
-      id: build-docs
-      run: uv run mkdocs build
-    - name: Upload static files as artifact
-      id: upload_artifact
-      uses: actions/upload-pages-artifact@v3
-      with:
-        path: site/
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        id: install-deps
+        run: uv sync --only-group docs
+      - name: Build MkDocs documentation
+        id: build-docs
+        run: uv run mkdocs build
+      - name: Upload static files as artifact
+        id: upload_artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
 
-  #Deploy artifact to Github Pages
+  # Deploy artifact to Github Pages
   deploy:
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ github.ref == 'refs/heads/main' }}
     needs: build
     permissions:
       pages: write

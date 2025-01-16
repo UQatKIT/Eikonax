@@ -36,6 +36,25 @@ jobs:
           uv sync --only-group style
           uv run ruff format
 
+  #Build documentation without deploying
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        id: install-deps
+        run: uv sync --only-group docs
+      - name: Build MkDocs documentation
+        id: build-docs
+        run: uv run mkdocs build
+
   # Run tests with Pytest
   test:
     runs-on: ubuntu-latest

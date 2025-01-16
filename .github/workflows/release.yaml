@@ -15,14 +15,15 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
     steps:
-    - name: Checkout code
-      id: checkout-code
-      uses: actions/checkout@v4
-    - name: Create release
-      id: create-release
-      uses: softprops/action-gh-release@v2
-      with:
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Create release
+        id: create-release
+        uses: softprops/action-gh-release@v2
+        with:
           body_path: ${{ github.workspace }}/CHANGELOG.md
