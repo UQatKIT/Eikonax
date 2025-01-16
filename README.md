@@ -1,5 +1,9 @@
-[![Docs](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml/badge.svg)](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml)
+
+![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/ci.yaml?label=CI)
+![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?label=Docs)
 ![License](https://img.shields.io/github/license/UQatKIT/Eikonax)
+![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
+![Beartype](https://github.com/beartype/beartype-assets/blob/main/badge/bear-ified.svg)
 
 # Eikonax: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 

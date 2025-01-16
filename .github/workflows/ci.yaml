@@ -4,7 +4,7 @@
 # 1. Format code with Ruff
 # 2. Run tests with Pytest
 name: CI
-run-name: Continuous Integration for Main branch
+run-name: Continuous Integration for main branch
 
 
 # -- Trigger Events --------------------------------------------------------------------------------
