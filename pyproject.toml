@@ -28,19 +28,25 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
+test = [
   "fim-python>=1.2.2",
-  "git-cliff>=2.7.0",
-  "jupyter>=1.1.1,<2",
-  "matplotlib>=3.9.2,<4",
-  "mkdocs-material>=9.5.49",
-  "mkdocs-autorefs>=1.2.0",
-  "mkdocstrings[python]>=0.27.0",
-  "pandas>=2.2.2,<3",
   "pytest>=8.3.4,<9",
   "pytest-cov>=6.0.0,<7",
   "pytest-xdist>=3.6.1,<4",
+]
+docs = [
+  "git-cliff>=2.7.0",
+  "mkdocs-material>=9.5.49",
+  "mkdocs-autorefs>=1.2.0",
+  "mkdocstrings[python]>=0.27.0",
+]
+style = [
   "ruff>=0.8.6",
+]
+dev = [
+  "jupyter>=1.1.1,<2",
+  "matplotlib>=3.9.2,<4",
+  "pandas>=2.2.2,<3",
   "seaborn>=0.13.2,<0.14",
 ]
 

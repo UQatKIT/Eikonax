@@ -297,7 +297,7 @@ wheels = [
 
 [[package]]
 name = "eikonax"
-version = "0.1.0"
+version = "0.0.0.post89+74f822f"
 source = { editable = "." }
 dependencies = [
     { name = "beartype", marker = "sys_platform == 'linux'" },
@@ -310,19 +310,25 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "fim-python", marker = "sys_platform == 'linux'" },
-    { name = "git-cliff", marker = "sys_platform == 'linux'" },
     { name = "jupyter", marker = "sys_platform == 'linux'" },
     { name = "matplotlib", marker = "sys_platform == 'linux'" },
+    { name = "pandas", marker = "sys_platform == 'linux'" },
+    { name = "seaborn", marker = "sys_platform == 'linux'" },
+]
+docs = [
+    { name = "git-cliff", marker = "sys_platform == 'linux'" },
     { name = "mkdocs-autorefs", marker = "sys_platform == 'linux'" },
     { name = "mkdocs-material", marker = "sys_platform == 'linux'" },
     { name = "mkdocstrings", extra = ["python"], marker = "sys_platform == 'linux'" },
-    { name = "pandas", marker = "sys_platform == 'linux'" },
+]
+style = [
+    { name = "ruff", marker = "sys_platform == 'linux'" },
+]
+test = [
+    { name = "fim-python", marker = "sys_platform == 'linux'" },
     { name = "pytest", marker = "sys_platform == 'linux'" },
     { name = "pytest-cov", marker = "sys_platform == 'linux'" },
     { name = "pytest-xdist", marker = "sys_platform == 'linux'" },
-    { name = "ruff", marker = "sys_platform == 'linux'" },
-    { name = "seaborn", marker = "sys_platform == 'linux'" },
 ]
 
 [package.metadata]
@@ -337,19 +343,23 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "fim-python", specifier = ">=1.2.2" },
-    { name = "git-cliff", specifier = ">=2.7.0" },
     { name = "jupyter", specifier = ">=1.1.1,<2" },
     { name = "matplotlib", specifier = ">=3.9.2,<4" },
+    { name = "pandas", specifier = ">=2.2.2,<3" },
+    { name = "seaborn", specifier = ">=0.13.2,<0.14" },
+]
+docs = [
+    { name = "git-cliff", specifier = ">=2.7.0" },
     { name = "mkdocs-autorefs", specifier = ">=1.2.0" },
     { name = "mkdocs-material", specifier = ">=9.5.49" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
-    { name = "pandas", specifier = ">=2.2.2,<3" },
+]
+style = [{ name = "ruff", specifier = ">=0.8.6" }]
+test = [
+    { name = "fim-python", specifier = ">=1.2.2" },
     { name = "pytest", specifier = ">=8.3.4,<9" },
     { name = "pytest-cov", specifier = ">=6.0.0,<7" },
     { name = "pytest-xdist", specifier = ">=3.6.1,<4" },
-    { name = "ruff", specifier = ">=0.8.6" },
-    { name = "seaborn", specifier = ">=0.13.2,<0.14" },
 ]
 
 [[package]]

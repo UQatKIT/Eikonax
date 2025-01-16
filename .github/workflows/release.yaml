@@ -1,0 +1,28 @@
+# -- Github Workflow Release Creation --------------------------------------------------------------
+# Releases are created when a new tag is pushed to the main branch of the repository
+# Version tags require semantic versioning
+name: Release
+run-name: Create Github release from tagged commit
+
+# -- Trigger Events --------------------------------------------------------------------------------
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
+    tags:
+      - "v*.*.*"
+
+# -- Jobs ------------------------------------------------------------------------------------------
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      id: checkout-code
+      uses: actions/checkout@v4
+    - name: Create release
+      id: create-release
+      uses: softprops/action-gh-release@v2
+      with:
+          body_path: ${{ github.workspace }}/CHANGELOG.md

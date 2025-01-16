@@ -6,17 +6,15 @@
 name: CI
 run-name: Continuous Integration for main branch
 
-
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
   workflow_dispatch:
   push:
     branches:
-    - main
+      - main
   pull_request:
     branches:
-    - main
-  
+      - main
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
@@ -24,34 +22,54 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      id: checkout-code
-      uses: actions/checkout@v4
-    - name: Install uv
-      id: setup-uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-    - name: Format code with Ruff
-      id: format-ruff
-      run: uvx ruff format
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Format code with Ruff
+        id: format-ruff
+        run: |
+          uv sync --only-group style
+          uv run ruff format
+
+# Build documentation for testing, do not deploy yet
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        id: install-deps
+        run: uv sync --only-group docs
+      - name: Build MkDocs documentation
+        id: build-docs
+        run: uv run mkdocs build
+
   # Run tests with Pytest
   test:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      id: checkout-code
-      uses: actions/checkout@v4
-    - name: Install uv
-      id: setup-uv
-      uses: astral-sh/setup-uv@v5
-      with:
-        enable-cache: true
-    - name: Install dependencies
-      id: install-deps
-      run: uv sync --dev
-    - name: Run tests with Pytest
-      id: run-tests
-      run: uv run pytest
-
-
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        id: install-deps
+        run: uv sync --group test
+      - name: Run tests with Pytest
+        id: run-tests
+        run: uv run pytest
