@@ -297,7 +297,7 @@ wheels = [
 
 [[package]]
 name = "eikonax"
-version = "0.1.0"
+version = "0.0.0.post103+46353f0"
 source = { editable = "." }
 dependencies = [
     { name = "beartype", marker = "sys_platform == 'linux'" },
