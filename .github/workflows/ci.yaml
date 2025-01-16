@@ -27,6 +27,7 @@ jobs:
     steps:
       - name: Checkcontrol flow logic
         run: |
+          echo "Checkvariables"
           echo "${{ github.head_ref }}"
           echo "${{ github.ref_name }}"
 
