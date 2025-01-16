@@ -297,12 +297,11 @@ wheels = [
 
 [[package]]
 name = "eikonax"
-version = "0.0.0.post87+6210cb8"
+version = "0.0.0.post88+31b859d"
 source = { editable = "." }
 dependencies = [
     { name = "beartype", marker = "sys_platform == 'linux'" },
     { name = "equinox", marker = "sys_platform == 'linux'" },
-    { name = "git-cliff", marker = "sys_platform == 'linux'" },
     { name = "jax", marker = "sys_platform == 'linux'" },
     { name = "jaxtyping", marker = "sys_platform == 'linux'" },
     { name = "numpy", marker = "sys_platform == 'linux'" },
@@ -330,7 +329,6 @@ dev = [
 requires-dist = [
     { name = "beartype", specifier = ">=0.19.0,<0.20" },
     { name = "equinox", specifier = ">=0.11.5,<0.11.6" },
-    { name = "git-cliff", specifier = ">=2.7.0" },
     { name = "jax", specifier = ">=0.4.31,<0.5" },
     { name = "jaxtyping", specifier = ">=0.2.36,<0.3" },
     { name = "numpy", specifier = ">=2.1.1,<3" },
