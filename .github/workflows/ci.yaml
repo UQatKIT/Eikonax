@@ -20,7 +20,7 @@ on:
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
-  # Format codewith Ruff
+  # Format code with Ruff
   format:
     runs-on: ubuntu-latest
     steps:

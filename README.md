@@ -3,8 +3,8 @@
 ![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?label=Docs)
 ![License](https://img.shields.io/github/license/UQatKIT/Eikonax)
 ![JAX](https://img.shields.io/badge/JAX-Accelerated-9cf.svg)
-![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 ![Beartype](https://github.com/beartype/beartype-assets/blob/main/badge/bear-ified.svg)
+![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
 
 # Eikonax: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 
