@@ -18,9 +18,9 @@ jobs:
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
-      - if: ${{ steps.setup-uv.outputs.cache-hit != 'true'}}
-        name: Install project dependencies
-        run: echo "$steps.setup-uv.outputs.cache-hit"
+      - name: Install project dependencies 
+        if: ${{ steps.setup-uv.outputs.cache-hit != 'true'}}
+        run: echo "Cache miss!"
         #run: uv sync --all-extras --dev
   formatting:
     runs-on: ubuntu-latest
