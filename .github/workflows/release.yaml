@@ -8,8 +8,8 @@ run-name: Create Github release from tagged commit
 on:
   workflow_dispatch:
   push:
-    branches:
-    - main
+    tags:
+      - v*
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
