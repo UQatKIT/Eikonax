@@ -1,4 +1,5 @@
 [![Docs](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml/badge.svg)](https://github.com/UQatKIT/Eikonax/actions/workflows/build_docs.yaml)
+![License](https://img.shields.io/github/license/UQatKIT/Eikonax)
 
 # Eikonax: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 

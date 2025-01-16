@@ -1,15 +1,26 @@
+# -- Github Workflow for Continuous Integration ----------------------------------------------------
+# Intended to be used on push for PR to main
+# This workflow will:
+# 1. Format code with Ruff
+# 2. Run tests with Pytest
 name: CI
-run-name: Format code with Ruff and run tests with Pytest
+run-name: Continuous Integration for Main branch
 
+
+# -- Trigger Events --------------------------------------------------------------------------------
 on:
+  workflow_dispatch:
   push:
     branches:
     - main
   pull_request:
     branches:
     - main
+  
 
+# -- Jobs ------------------------------------------------------------------------------------------
 jobs:
+  # Format codewith Ruff
   format:
     runs-on: ubuntu-latest
     steps:
@@ -21,12 +32,10 @@ jobs:
       uses: astral-sh/setup-uv@v5
       with:
         enable-cache: true
-    - name: Install Ruff
-      id: install-ruff
-      run: uv add ruff
     - name: Format code with Ruff
       id: format-ruff
-      run: uv run ruff format
+      run: uvx ruff format
+  # Run tests with Pytest
   test:
     runs-on: ubuntu-latest
     steps:
