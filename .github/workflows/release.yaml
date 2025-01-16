@@ -10,7 +10,6 @@ on:
   push:
     branches:
     - main
-    if: "startsWith(github.ref, 'refs/tags/')"
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
