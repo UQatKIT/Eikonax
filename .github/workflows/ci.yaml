@@ -72,4 +72,8 @@ jobs:
         run: uv sync --group test
       - name: Run tests with Pytest
         id: run-tests
-        run: uv run pytest
+        run: uv run pytest --cov-branch --cov-report=xml
+      - name: Upload coverage report
+        id: upload-coverage
+        if: ${{ github.event_name == 'push' }}
+        uses: codecov/codecov-action@v5
