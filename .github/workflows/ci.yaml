@@ -77,3 +77,5 @@ jobs:
         id: upload-coverage
         if: ${{ github.event_name == 'push' }}
         uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -3,6 +3,7 @@
         "changelog",
         "uv",
         "release",
-        "ci"
+        "ci",
+        "coverage"
     ]
 }
