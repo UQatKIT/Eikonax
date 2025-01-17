@@ -1,7 +1,7 @@
-# -- Github Workflow for Publishing toIndices ------------------------------------------------------
+# -- Github Workflow for Publishing to Text Indices ------------------------------------------------
 # Workflow is manual
 name: Publish
-run-name: Publish Python package to indices
+run-name: Publish Python package to test indices
 
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
@@ -30,4 +30,4 @@ jobs:
         id: publish
         run: |
           uv build
-          uv publish --publish-url https://upload.pypi.org/legacy/ --trusted-publishing always
+          uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
