@@ -7,7 +7,6 @@ dynamic = ["version"]
 readme = "README.md"
 license = { file = "LICENSE" }
 keywords = ["eikonal equation", "automatic differentiation", "GPU acceleration"]
-urls = { repository = "https://github.com/UQatKIT/Eikonax" }
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3.12",
@@ -16,6 +15,9 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
 ]
+urls = { repository = "https://github.com/UQatKIT/Eikonax", documentation = "https://uqatkit.github.io/Eikonax/" }
+
+
 
 # --------------------------------------------------------------------------------------------------
 dependencies = [
@@ -40,9 +42,7 @@ docs = [
   "mkdocs-autorefs>=1.2.0",
   "mkdocstrings[python]>=0.27.0",
 ]
-style = [
-  "ruff>=0.8.6",
-]
+style = ["ruff>=0.8.6"]
 dev = [
   "jupyter>=1.1.1,<2",
   "matplotlib>=3.9.2,<4",
