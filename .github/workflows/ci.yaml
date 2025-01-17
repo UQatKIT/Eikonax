@@ -58,6 +58,7 @@ jobs:
   # Run tests with Pytest
   test:
     runs-on: ubuntu-latest
+    environment: codecov
     steps:
       - name: Checkout code
         id: checkout-code
