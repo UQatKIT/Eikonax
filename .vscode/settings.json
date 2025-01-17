@@ -4,6 +4,7 @@
         "uv",
         "release",
         "ci",
-        "coverage"
+        "coverage",
+        "readme"
     ]
 }

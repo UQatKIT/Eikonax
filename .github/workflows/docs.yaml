@@ -16,6 +16,7 @@ jobs:
   # Build documentation and upload artifact
   build:
     runs-on: ubuntu-latest
+    environment: docs
     steps:
       - name: Checkout code
         id: checkout-code
