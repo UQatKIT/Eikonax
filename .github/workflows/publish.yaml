@@ -1,8 +1,7 @@
-# -- Github Workflow Release Creation --------------------------------------------------------------
-# Releases are created when a new tag is pushed to the main branch of the repository
-# Version tags require semantic versioning
-name: Release
-run-name: Create Github release from tagged commit
+# -- Github Workflow for Publishing to Index -------------------------------------------------------
+# Workflow is triggered when a new release is created
+name: Publish
+run-name: Publish Python package to indices
 
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
@@ -12,7 +11,7 @@ on:
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
   # Publish to Test-PyPI
-  publish-pypi:
+  publish-testpypi:
     runs-on: ubuntu-latest
     environment: test-pypi
     permissions:
