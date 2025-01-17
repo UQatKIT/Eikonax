@@ -16,7 +16,7 @@ jobs:
   # Publish to Test-PyPI
   publish-testpypi:
     runs-on: ubuntu-latest
-    environment: test-publish
+    environment: publish
     permissions:
       id-token: write
     steps:
