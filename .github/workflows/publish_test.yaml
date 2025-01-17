@@ -1,6 +1,6 @@
 # -- Github Workflow for Publishing to Text Indices ------------------------------------------------
 # Workflow is manual
-name: Publish
+name: Publish-Test
 run-name: Publish Python package to test indices
 
 # -- Trigger Events --------------------------------------------------------------------------------
