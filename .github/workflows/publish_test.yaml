@@ -7,6 +7,10 @@ run-name: Publish Python package to test indices
 on:
   workflow_dispatch:
 
+# -- Concurrency -----------------------------------------------------------------------------------
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
   # Publish to Test-PyPI
