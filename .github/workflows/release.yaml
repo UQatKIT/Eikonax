@@ -21,8 +21,19 @@ jobs:
       - name: Checkout code
         id: checkout-code
         uses: actions/checkout@v4
+      - name: Install uv
+        id: setup-uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        id: install-deps
+        run: uv sync --only-group docs
+      - name: Create changelog
+        id: create-changelog
+        run: uv run git-cliff --latest --strip all --output ${{ github.workspace }}/temp_changelog.md
       - name: Create release
         id: create-release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: ${{ github.workspace }}/CHANGELOG.md
+          body_path: ${{ github.workspace }}/temp_changelog.md

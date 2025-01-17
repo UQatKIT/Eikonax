@@ -1,6 +1,6 @@
 
-![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/ci.yaml?label=CI)
-![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?label=Docs)
+![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/ci.yaml?branch=main&event=push&label=CI)
+![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?branch=main&event=push&label=Docs)
 ![License](https://img.shields.io/github/license/UQatKIT/Eikonax)
 ![JAX](https://img.shields.io/badge/JAX-Accelerated-9cf.svg)
 ![Beartype](https://github.com/beartype/beartype-assets/blob/main/badge/bear-ified.svg)
