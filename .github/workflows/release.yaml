@@ -1,6 +1,3 @@
-# -- Github Workflow Release Creation --------------------------------------------------------------
-# Releases are created when a new tag is pushed to the main branch of the repository
-# Version tags require semantic versioning
 name: Release
 run-name: Create Github release from tagged commit
 
@@ -10,6 +7,10 @@ on:
   push:
     tags:
       - v*
+
+# -- Concurrency -----------------------------------------------------------------------------------
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
@@ -34,9 +35,9 @@ jobs:
         run: uv sync --only-group docs
       - name: Create changelog
         id: create-changelog
-        run: uv run git-cliff --latest --strip all --output ${{ github.workspace }}/temp_changelog.md
+        run: uv run git-cliff --latest --strip all --output ${{ github.workspace }}/changelog.md
       - name: Create release
         id: create-release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: ${{ github.workspace }}/temp_changelog.md
+          body_path: ${{ github.workspace }}/changelog.md

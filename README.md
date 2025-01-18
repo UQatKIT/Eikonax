@@ -1,8 +1,10 @@
 
-![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/ci.yaml?branch=main&event=push&label=CI)
-![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?branch=main&label=Docs)
-![Docs](https://img.shields.io/codecov/c/github/UQatKIT/Eikonax)
-![License](https://img.shields.io/github/license/UQatKIT/Eikonax)
+![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/main.yaml?label=CI)
+![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/main.yaml?label=Docs)
+![Coverage](https://img.shields.io/codecov/c/github/UQatKIT/Eikonax)
+![Version](https://img.shields.io/pypi/v/Eikonax)
+![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FUQatKIT%2FEikonax%2Fmain%2Fpyproject.toml)
+![License](https://img.shields.io/github/license/UQatKIT/Eikonax) <br>
 ![JAX](https://img.shields.io/badge/JAX-Accelerated-9cf.svg)
 ![Beartype](https://github.com/beartype/beartype-assets/raw/main/badge/bear-ified.svg)
 ![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)
@@ -52,7 +54,7 @@ in the project root directory.
 
 ## Documentation
 
-The [documentation](https://uqatkit.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](examples/)
+The [documentation](https://uqatkit.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](https://github.com/UQatKIT/Eikonax/tree/main/examples)
 
 
 ## Acknowledgement and License

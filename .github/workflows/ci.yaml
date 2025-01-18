@@ -1,24 +1,18 @@
-# -- Github Workflow for Continuous Integration ----------------------------------------------------
-# Intended to be used on push for PR to main
-# This workflow will:
-# 1. Format code with Ruff
-# 2. Run tests with Pytest
 name: CI
-run-name: Continuous Integration for main branch
+run-name: Continuous Integration for PRs or non-default branches
 
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
   pull_request:
+    types:
+      [opened, reopened]
     branches:
       - main
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
-  # Format code with Ruff
+  # Check code with Ruff
   format:
     runs-on: ubuntu-latest
     steps:
@@ -34,7 +28,7 @@ jobs:
         id: format-ruff
         run: |
           uv sync --only-group style
-          uv run ruff format
+          uv run ruff format --check
 
   #Build documentation without deploying
   docs:
@@ -58,7 +52,6 @@ jobs:
   # Run tests with Pytest
   test:
     runs-on: ubuntu-latest
-    environment: codecov
     steps:
       - name: Checkout code
         id: checkout-code
@@ -73,10 +66,4 @@ jobs:
         run: uv sync --group test
       - name: Run tests with Pytest
         id: run-tests
-        run: uv run pytest --cov-branch --cov-report=xml
-      - name: Upload coverage report
-        id: upload-coverage
-        if: ${{ github.event_name == 'push' }}
-        uses: codecov/codecov-action@v5
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: uv run pytest
