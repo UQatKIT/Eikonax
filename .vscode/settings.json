@@ -5,6 +5,7 @@
         "release",
         "ci",
         "coverage",
-        "readme"
+        "readme",
+        "index"
     ]
 }
