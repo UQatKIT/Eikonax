@@ -22,7 +22,12 @@ jobs:
   # Check code with Ruff
   format:
     runs-on: ubuntu-latest
-    if : ${{ github.event_name == 'push' || github.event.pull_request.merged == true }}
+    if :
+      ${{
+        github.event_name == 'workflow_dispatch'||
+        github.event_name == 'push' ||
+        github.event.pull_request.merged == true
+      }}
     steps:
       - name: Checkout code
         id: checkout-code
@@ -36,12 +41,17 @@ jobs:
         id: format-ruff
         run: |
           uv sync --only-group style
-          uv run ruff format
+          uv run ruff format --check
 
   #Build documentation and upload as artifact
   build-docs:
     runs-on: ubuntu-latest
-    if : ${{ github.event_name == 'push' || github.event.pull_request.merged == true }}
+    if :
+      ${{
+        github.event_name == 'workflow_dispatch'||
+        github.event_name == 'push' ||
+        github.event.pull_request.merged == true
+      }}
     environment: main
     steps:
       - name: Checkout code
@@ -67,7 +77,12 @@ jobs:
   # Deploy documentation artifact to Github Pages
   deploy-docs:
     runs-on: ubuntu-latest
-    if : ${{ github.event_name == 'push' || github.event.pull_request.merged == true }}
+    if :
+      ${{
+        github.event_name == 'workflow_dispatch'||
+        github.event_name == 'push' ||
+        github.event.pull_request.merged == true
+      }}
     needs: build-docs
     permissions:
       pages: write
@@ -83,6 +98,12 @@ jobs:
   # Run tests with Pytest
   test:
     runs-on: ubuntu-latest
+    if :
+      ${{
+        github.event_name == 'workflow_dispatch'||
+        github.event_name == 'push' ||
+        github.event.pull_request.merged == true
+      }}
     environment: main
     steps:
       - name: Checkout code
@@ -109,6 +130,12 @@ jobs:
   # Upload coverage report
   coverage:
     runs-on: ubuntu-latest
+    if :
+      ${{
+        github.event_name == 'workflow_dispatch'||
+        github.event_name == 'push' ||
+        github.event.pull_request.merged == true
+      }}
     environment: main
     needs: test
     steps:
