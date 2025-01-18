@@ -14,11 +14,9 @@
 Eikonax is a pure Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
 
 $$
-\begin{gather*}
 \sqrt{\big(\nabla u(\mathbf{x}),\mathbf{M}(\mathbf{x})\nabla u(\mathbf{x})\big)} = 1,\quad \mathbf{x}\in\Omega, \\
 \nabla u(\mathbf{x}) \cdot \mathbf{n}(\mathbf{x}) \geq 0,\quad \mathbf{x}\in\partial\Omega, \\
 u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
-\end{gather*}
 $$
 
 The iterative solver is based on *Godunov-type upwinding* and employs global *Jacobi updates*, which can be efficiently ported to SIMD architectures.
@@ -26,17 +24,14 @@ In addition, Eikonax implements an efficient algorithm for the evaluation of *pa
 Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
 
 ### Key Features
-:heavy_check_mark: &nbsp; **Supports anisotropic conductivity tensors** <br>
-:heavy_check_mark: &nbsp; **Works on irregular meshes** <br>
-:heavy_check_mark: &nbsp; **GPU offloading of performance-relevant computations** <br>
-:heavy_check_mark: &nbsp; **Super fast derivatives through causality-informed adjoints**
+- **Supports anisotropic conductivity tensors**
+- **Works on irregular meshes**
+- **GPU offloading of performance-relevant computations**
+- **Super fast derivatives through causality-informed adjoints**
 
-<br>
 
-> [!TIP] 
-> Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
+>Eikonax is mainly based on the [JAX](https://jax.readthedocs.io/en/latest/) software library. This allows for GPU offloading of relevant computations. In addition, Eikonax makes extensive use of JAX`s just-in-time compilation and automatic differentiation capabilities.
 
-<br>
 
 
 ## Getting Started
@@ -60,4 +55,4 @@ The [documentation](https://uqatkit.github.io/Eikonax/) provides further informa
 ## Acknowledgement and License
 
 Eikonax is being developed in the research group [Uncertainty Quantification](https://www.scc.kit.edu/forschung/uq.php) at KIT.
-It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
+It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/).
