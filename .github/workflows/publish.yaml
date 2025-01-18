@@ -10,7 +10,7 @@ on:
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
   # Publish to Test-PyPI
-  publish-testpypi:
+  publish-pypi:
     runs-on: ubuntu-latest
     environment: publish
     permissions:
