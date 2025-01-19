@@ -1,7 +1,5 @@
-# -- Github Workflow for Publishing toIndices ------------------------------------------------------
-# Workflow is manual
-name: Publish
-run-name: Publish Python package to indices
+name: Publish-PyPI
+run-name: Publish Python package to PyPI
 
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
@@ -13,7 +11,7 @@ concurrency:
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
-  # Publish to Test-PyPI
+  # Publish to PyPI
   publish-pypi:
     runs-on: ubuntu-latest
     environment: publish

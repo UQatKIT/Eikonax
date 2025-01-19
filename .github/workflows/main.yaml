@@ -19,8 +19,8 @@ concurrency:
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
-  # Check code with Ruff
-  format:
+  #Build documentation without deploying
+  docs:
     runs-on: ubuntu-latest
     if :
       ${{
@@ -28,31 +28,6 @@ jobs:
         github.event_name == 'push' ||
         github.event.pull_request.merged == true
       }}
-    steps:
-      - name: Checkout code
-        id: checkout-code
-        uses: actions/checkout@v4
-      - name: Install uv
-        id: setup-uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - name: Format code with Ruff
-        id: format-ruff
-        run: |
-          uv sync --only-group style
-          uv run ruff format --check
-
-  #Build documentation and upload as artifact
-  build-docs:
-    runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
-      }}
-    environment: main
     steps:
       - name: Checkout code
         id: checkout-code
@@ -68,34 +43,8 @@ jobs:
       - name: Build MkDocs documentation
         id: build-docs
         run: uv run mkdocs build
-      - name: Upload static files as artifact
-        id: upload_artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site/
 
-  # Deploy documentation artifact to Github Pages
-  deploy-docs:
-    runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
-      }}
-    needs: build-docs
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: main
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  # Run tests with Pytest
+  # Run tests with Pytest, upload coverage report if main is changed
   test:
     runs-on: ubuntu-latest
     if :
@@ -119,29 +68,11 @@ jobs:
         run: uv sync --group test
       - name: Run tests with Pytest
         id: run-tests
-        run: uv run pytest --cov-branch --cov-report=xml
-      - name: Store coverage report
-        id: store-coverage
-        uses: actions/upload-artifact@v4
+        run: uv run pytest --cov-branch --cov-report=xml:coverage.xml
+      - name: Upload coverage report
+        id: upload-coverage
+        if: ${{ github.event_name == 'push' }}
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-report
-          path: coverage.xml
-
-  # Upload coverage report
-  coverage:
-    runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
-      }}
-    environment: main
-    needs: test
-    steps:
-    - name: Upload coverage report
-      id: upload-coverage
-      if: ${{ github.event_name == 'push' }}
-      uses: codecov/codecov-action@v5
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
