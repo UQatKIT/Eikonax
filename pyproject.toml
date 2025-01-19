@@ -52,19 +52,13 @@ dev = [
 
 # --------------------------------------------------------------------------------------------------
 [build-system]
-build-backend = "hatchling.build"
-requires = ["hatchling", "uv-dynamic-versioning"]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [tool.uv]
 environments = ["sys_platform == 'linux'"]
 cache-keys = [{ git = { commit = true, tags = true } }]
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-
-[tool.uv-dynamic-versioning]
-vsc = "git"
-style = "semver"
 
 # --------------------------------------------------------------------------------------------------
 [tool.ruff]
