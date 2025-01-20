@@ -462,7 +462,7 @@ class Solver(eqx.Module):
             (self_update, vertex_update_candidates.flatten())
         )
         vertex_update = jnp.min(vertex_update_candidates)
-        assert vertex_update.shape == (), (
-            f"Vertex update has to be scalar, but has shape {vertex_update.shape}"
-        )
+        assert (
+            vertex_update.shape == ()
+        ), f"Vertex update has to be scalar, but has shape {vertex_update.shape}"
         return vertex_update
