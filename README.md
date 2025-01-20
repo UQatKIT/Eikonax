@@ -45,7 +45,7 @@ pip install eikonax
 
 For development, we recommend using the great [uv](https://docs.astral.sh/uv/) project management tool, for which Eikonax provides a universal lock file. To set up a reproducible environment, run
 ```bash
-uv sync
+uv sync --all-groups
 ```
 in the project root directory.
 

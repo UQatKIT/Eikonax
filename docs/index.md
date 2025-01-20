@@ -34,25 +34,24 @@ pip install eikonax
 
 For development, we recommend using the great [uv](https://docs.astral.sh/uv/) project management tool, for which Eikonax provides a universal lock file. To set up a reproducible environment, run
 ```bash
-uv sync
+uv sync --all-groups
 ```
 in the project root directory.
 
-## Overview of Resources
+## Documentation
 
 #### Usage
 
 Under Usage, we provide guides walkthroughs through the functionalities of Eikonax.
 The [Forward Solver](usage/solve.md) document explains in detail how to set up Eikonax for solving the Eikonal equation. [Parametric Derivatives](usage/derivatives.md) demonstrates how to differentiate the solver, given a computed forward solution.
 
-#### Background
-
-This section discusses more technical topics of Eikonax. The [Theory](background/theory.md) section elucidates the mathematical and 
-algorithmic backbone of the library. In [Software](background/setup.md), we show how the theoretical considerations translate to the design and functionality of Eikonax.
-
 #### API Reference
 
 The API reference contains detailed explanations of all software components of Eikonax, and how to use them.
+
+#### Examples
+
+We provide [runnable examples](https://github.com/UQatKIT/Eikonax/tree/main/examples) in our Github repository.
 
 ## Acknowledgement and License
 

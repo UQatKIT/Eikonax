@@ -3,14 +3,13 @@ authors = [{ name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu" }]
 maintainers = [{ name = "Maximilian Kruse", email = "maximilian.kruse@kit.edu" }]
 description = "Differentiable Solver for the Anisotropic Eikonal Equation on Triangulated Meshes"
 name = "eikonax"
-requires-python = ">= 3.12,<3.13"
+requires-python = ">= 3.12"
 dynamic = ["version"]
 readme = "README.md"
 license = { text = "GPL-3.0-only" }
 keywords = ["eikonal equation", "automatic differentiation", "GPU acceleration"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "Programming Language :: Python :: 3.12",
   "Operating System :: POSIX :: Linux",
   "Environment :: GPU :: NVIDIA CUDA",
   "Intended Audience :: Science/Research",
