@@ -115,9 +115,6 @@ nav:
   - Usage:
     - Forward Solver: usage/solve.md
     - Parametric Derivatives: usage/derivatives.md
-  - Background:
-    - Theory: background/theory.md
-    - Software Setup: background/setup.md
   - API Reference:
     - Solver: api/solver.md
     - Derivator: api/derivator.md
