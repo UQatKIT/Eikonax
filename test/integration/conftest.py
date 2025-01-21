@@ -123,7 +123,6 @@ def setup_analytical_partial_derivative_tests(
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
     derivator_data = {
         "use_soft_update": True,
-        "softmin_order": 20,
         "softminmax_order": 20,
         "softminmax_cutoff": 1,
     }
@@ -183,7 +182,6 @@ def setup_derivative_solve_checks(mesh_small):
     )
     derivator_data = derivator.PartialDerivatorData(
         use_soft_update=True,
-        softmin_order=20,
         softminmax_order=20,
         softminmax_cutoff=1,
     )

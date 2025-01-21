@@ -8,8 +8,6 @@ Classes:
     InitialSites: Initial site info.
 
 Functions:
-    compute_softmin: Numerically stable computation of the softmin function based on the Boltzmann
-        operator.
     compute_softminmax: Smooth double ReLU-type approximation that restricts a variable to the
         interval [0, 1].
     compute_edges: Compute the edges of a triangle from vertex indices and coordinates.
@@ -23,8 +21,7 @@ Functions:
     compute_update_candidates_from_adjacent_simplex: Compute all possible update candidates from an
         adjacent triangle.
     compute_vertex_update_candidates: Compute all update candidates for a given vertex.
-    grad_softmin: The gradient of the softmin function requires further masking of infeasible
-        values.
+    grad_average: JAX-compatible computation of the gradient of the average function.
 """
 
 from collections.abc import Iterable
@@ -92,40 +89,6 @@ class InitialSites:
 
 
 # ==================================================================================================
-def compute_softmin(
-    args: jtReal[jax.Array, "..."], min_arg: jtReal[jax.Array, ""], order: int
-) -> jtFloat[jax.Array, ""]:
-    """Numerically stable computation of the softmin function based on the Boltzmann operator.
-
-    !!! danger "To be rewritten"
-        The softmin function applied to only optimal update values simply amounts to the average
-        of this solution candidates, meaning we deal with a sub-gradient here. Will be changed in a
-        future version.
-
-    This softmin function is applied to actual minimum values, meaning it does not have a purpose
-    on the evaluation level. It renders the minimum computation differentiable, however.
-    Importantly, the Boltzmann softmin is value preserving, meaning that the solution of the eikonal
-    equation is the same as for a hard minimum. As JAX works on homogeneous arrays only, non-minimal
-    values are also passed to this function. They are assumed to be masked as jnp.inf, which are
-    handled in a numerically stable way by this routine.
-
-    Args:
-        args (jax.Array): Values to compute the soft minimum over
-        min_arg (jax.Array): The actual value of the minimum argument, necessary for numerical
-            stability
-        order (int): Approximation order of the softmin function
-
-    Returns:
-        jax.Array: Soft minimum value
-    """
-    arg_diff = min_arg - args
-    nominator = jnp.where(args == jnp.inf, 0, args * jnp.exp(order * arg_diff))
-    denominator = jnp.where(args == jnp.inf, 0, jnp.exp(order * arg_diff))
-    soft_value = jnp.sum(nominator) / jnp.sum(denominator)
-    return soft_value
-
-
-# --------------------------------------------------------------------------------------------------
 def compute_softminmax(value: jtReal[jax.Array, "..."], order: int) -> jtFloat[jax.Array, "..."]:
     r"""Smooth double ReLU-type approximation that restricts a variable to the interval $[0, 1]$.
 
@@ -516,14 +479,19 @@ jac_lambda_hard_parameter = jax.jacobian(compute_optimal_update_parameters_hard,
 
 
 # --------------------------------------------------------------------------------------------------
-def grad_softmin(
-    args: jtFloat[jax.Array, "num_args"], min_arg: jtFloat[jax.Array, ""], _order: int
+def grad_average(
+    args: jtFloat[jax.Array, "num_args"], min_arg: jtFloat[jax.Array, ""]
 ) -> jtFloat[jax.Array, "num_args"]:
-    """The gradient of the softmin function requires further masking of infeasible values.
+    """JAX-compatible computation of the gradient of the average function.
 
-    !!! danger "Needs reimplementation"
-        See the disclaimer under [compute_softmin][eikonax.corefunctions.compute_softmin].
+    This function is applied to actual minimum values, meaning it does not have a purpose
+    on the evaluation level. It renders the minimum computation differentiable, however.
+    Specifically, consider the scenario where a vertex can be updated identically from two different
+    directions. Clearly, the mapping from the parameter field to the solution vector is not
+    continuously differentiable at this point. Instead, we can only formulate a possible set
+    of sub-gradients. One strategy to cope with sub-gradients is to employ simple averaging over
+    all possible candidates.
     """
     num_min_args = jnp.count_nonzero(args == min_arg)
-    softmin_grad = jnp.where(args == min_arg, 1 / num_min_args, 0)
-    return softmin_grad
+    average_grad = jnp.where(args == min_arg, 1 / num_min_args, 0)
+    return average_grad

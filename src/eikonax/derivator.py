@@ -37,8 +37,6 @@ class PartialDerivatorData:
     See the [Forward Solver](../usage/solve.md) documentation for more detailed explanations.
 
     Attributes:
-        softmin_order (int): Order of the softmin function applied to update candidates with
-            identical, minimal arrival times.
         softminmax_order (int): Order of the the soft minmax function for differentiable
             transformation of the update parameters
         softminmax_cutoff (Real): Cut-off in for minmax transformation, beyond which zero
@@ -46,7 +44,6 @@ class PartialDerivatorData:
     """
 
     use_soft_update: bool
-    softmin_order: Annotated[int, Is[lambda x: x > 0]]
     softminmax_order: Annotated[int, Is[lambda x: x > 0]]
     softminmax_cutoff: Annotated[Real, Is[lambda x: x > 0]]
 
@@ -82,7 +79,6 @@ class PartialDerivator(eqx.Module):
     _initial_site_inds: jtInt[jax.Array, "num_initial_sites"]
     _initial_site_values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"]
     _use_soft_update: bool
-    _softmin_order: int
     _softminmax_order: int
     _softminmax_cutoff: int
 
@@ -106,7 +102,6 @@ class PartialDerivator(eqx.Module):
         self._initial_site_inds = initial_sites.inds
         self._initial_site_values = initial_sites.values
         self._use_soft_update = derivator_data.use_soft_update
-        self._softmin_order = derivator_data.softmin_order
         self._softminmax_order = derivator_data.softminmax_order
         self._softminmax_cutoff = derivator_data.softminmax_cutoff
 
@@ -351,18 +346,18 @@ class PartialDerivator(eqx.Module):
                 grad_update_parameter_candidates,
             )
         )
-        softmin_grad = corefunctions.grad_softmin(
-            vertex_update_candidates.flatten(), min_value, self._softmin_order
+        average_grad = corefunctions.grad_average(
+            vertex_update_candidates.flatten(), min_value
         ).reshape(vertex_update_candidates.shape)
 
         grad_update_solution = jnp.zeros((max_num_adjacent_simplices, 2))
         grad_update_parameter = jnp.zeros((max_num_adjacent_simplices, tensor_dim, tensor_dim))
         for i in range(max_num_adjacent_simplices):
             grad_update_solution = grad_update_solution.at[i, :].set(
-                jnp.tensordot(softmin_grad[i, :], grad_update_solution_candidates[i, ...], axes=1)
+                jnp.tensordot(average_grad[i, :], grad_update_solution_candidates[i, ...], axes=1)
             )
             grad_update_parameter = grad_update_parameter.at[i, ...].set(
-                jnp.tensordot(softmin_grad[i, :], grad_update_parameter_candidates[i, ...], axes=1)
+                jnp.tensordot(average_grad[i, :], grad_update_parameter_candidates[i, ...], axes=1)
             )
 
         return grad_update_solution, grad_update_parameter
@@ -582,7 +577,7 @@ class DerivativeSolver:
     derivatives of the global update operator with respect
     to the solution vector, $\mathbf{G}_u$, and the parameter tensor field, $\mathbf{G}_M$.
     Now we exploit the facto that the obtained solution candidate from a forward solve
-    $\mathbf{u}\in\mathbb{R}^N$ is, up to a given accuracy, is a fixed point of the
+    $\mathbf{u}\in\mathbb{R}^{N_V}$ is, up to a given accuracy, is a fixed point of the
     global update operator. We further consider the scenario of $\mathbf{M}(\mathbf{m})$ being
     dependent on some parameter $\mathbf{m}\in\mathbb{R}^M$. This means we can write $\mathbf{u}$ as
     a function of $\mathbf{m}$, obeying the relation
@@ -591,7 +586,7 @@ class DerivativeSolver:
         \mathbf{u}(\mathbf{m}) = \mathbf{G}(\mathbf{u}(\mathbf{m}), \mathbf{M}(\mathbf{m}))
     $$
 
-    To obtain the Jacobian $\mathbf{J} = \frac{d\mathbf{u}}{d\mathbf{m}}\in\mathbb{R}^{N\times M}$,
+    To obtain the Jacobian $\mathbf{J} = \frac{d\mathbf{u}}{d\mathbf{m}}\in\mathbb{R}^{N_V\times M}$,
     we simply differentiate the fixed point relation,
 
     $$
@@ -606,7 +601,7 @@ class DerivativeSolver:
     [`TensorField`][eikonax.tensorfield.TensorField] component.
 
     We are typically not interested in the full Jacobian, but rather in the gradient of some
-    cost functional $l:\mathbb{R}^N\to\mathbb{R},\ l=l(\mathbf{u}(\mathbf{m}))$ with respect to
+    cost functional $l:\mathbb{R}^{N_V}\to\mathbb{R},\ l=l(\mathbf{u}(\mathbf{m}))$ with respect to
     $\mathbf{m}$. The gradient is given as
 
     $$
@@ -794,13 +789,13 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     @property
     def sparse_system_matrix(self) -> sp.sparse.csc_matrix:
-        r"""Get system matrix $\bar{\mathbf{A}}\in\mathbb{R}^{N\times N}$."""
+        r"""Get system matrix $\bar{\mathbf{A}}\in\mathbb{R}^{{N_V}\times {N_V}}$."""
         return self._sparse_system_matrix
 
     # ----------------------------------------------------------------------------------------------
     @property
     def sparse_permutation_matrix(self) -> sp.sparse.csc_matrix:
-        r"""Get permutation matrix $\mathbf{P}\in\mathbb{R}^{N\times N}$."""
+        r"""Get permutation matrix $\mathbf{P}\in\mathbb{R}^{{N_V}\times {N_V}}$."""
         return self._sparse_permutation_matrix
 
 

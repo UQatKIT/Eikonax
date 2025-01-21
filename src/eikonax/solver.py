@@ -81,7 +81,7 @@ class Solver(eqx.Module):
     r"""Eikonax solver class.
 
     The solver class is the main component for computing the solution $u$ of the Eikonal equation
-    for given geometry $\Omega$, tensor field $\mathbf{M}$, and initial sites $\Gamma$,
+    for given geometry $\Omega$ of dimension $d$, tensor field $\mathbf{M}$, and initial sites $\Gamma$,
 
     $$
     \begin{gather*}
@@ -92,13 +92,16 @@ class Solver(eqx.Module):
     \end{gather*}
     $$
 
-    On the discrete level, the solver perform global Jacobi iterations of the form
+    On the discrete level, we assume that the eikonal equation is solved on a triangulation formed
+    by $N_V$ vertices and $N_S$ associated triangles. This means that for a tensor field
+    $\mathbf{M}\in\mathbb{R}^{N_S\times d\times d}$, the solver computes a solution vector
+    $\mathbf{u}\in\mathbb{R}^{N_V}$. through iteraive updates
 
     $$
-        \mathbf{u}^{(j+1)} = \mathbf{G}(\mathbf{u}^{(j)}),
+        \mathbf{u}^{(j+1)} = \mathbf{G}(\mathbf{u}^{(j)}, \mathbf{M}),
     $$
 
-    where $\mathbf{G}$ is the global update function, derived from Godunov-type upwinding
+    where global update function $\mathbf{G}$ is derived from Godunov-type upwinding
     principles. The solver can either be run with a fixed number of iterations, or until a
     user-defined tolerance for the difference between two consecutive iterates in supremum norm is
     undercut.
