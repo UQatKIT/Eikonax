@@ -73,7 +73,7 @@ For a well-defined solution of the eikonal equation, we further require a set of
 initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
 ```
 
-Lastly, we set up the configuration for the Eikonax solver:
+Lastly, we set up the configuration for the Eikonax solver with the [`SolverData`][eikonax.solver.SolverData] object:
 ```py
 solver_data = solver.SolverData(
     tolerance=1e-8,
@@ -85,6 +85,7 @@ solver_data = solver.SolverData(
     softminmax_cutoff=None,
 )
 ```
+
 The above data class requires some further elaboration, which we give in the following:
 
 - **`tolerance`** is the absolute difference in supremum norm $||\mathbf{u}^{(k+1)} - \mathbf{u}^{(k)}||$ of two solution vector iterates, according to the global update procedure $\mathbf{u}^{(k+1)} = \mathbf{G}(\mathbf{u}^{(k)})$. For tolerance-based solvers, the iteartion terminates when this tolerance is undercut.

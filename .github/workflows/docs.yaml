@@ -42,12 +42,6 @@ jobs:
   # Deploy documentation artifact to Github Pages
   deploy-docs:
     runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
-      }}
     needs: build-docs
     permissions:
       pages: write
