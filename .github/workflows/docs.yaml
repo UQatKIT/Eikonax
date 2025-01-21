@@ -47,7 +47,7 @@ jobs:
       pages: write
       id-token: write
     environment:
-      name: main
+      name: release
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
