@@ -1,6 +1,6 @@
 # Eikonax [<img src="images/uq_logo.png" width="200" height="100" alt="UQ at KIT" align="right">](https://www.scc.kit.edu/forschung/uq.php)
 
-Eikonax is a pure Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
+Eikonax is a pure-Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
 
 $$
 \begin{gather*}
@@ -11,7 +11,7 @@ u(\mathbf{x}_0) = u_0,\quad \mathbf{x}_0 \in \Gamma.
 $$
 
 The iterative solver is based on *Godunov-type upwinding* and employs global *Jacobi updates*, which can be efficiently ported to SIMD architectures.
-In addition, Eikonax implements an efficient algorithm for the evaluation of *parametric derivatives*, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. More precisely, we assume that the tensor field is parameterized through some vector $\mathbf{m}$, s.th. we compute $\frac{du}{d\mathbf{m}} = \frac{du}{d\mathbf{M}}\frac{d\mathbf{M}}{d\mathbf{m}}$. This make Eikonax particularly suitable for the inverse problem setting, where derivative information is typically indispensable for efficient solution procedures.
+In addition, Eikonax implements an efficient algorithm for the evaluation of *parametric derivatives*, meaning the derivative of the solution vector with respect to the parameter tensor field, $\frac{du}{d\mathbf{M}}$. More precisely, we assume that the tensor field is parameterized through some vector $\mathbf{m}$, s.th. we compute $\frac{du}{d\mathbf{m}} = \frac{du}{d\mathbf{M}}\frac{d\mathbf{M}}{d\mathbf{m}}$. This makes Eikonax particularly suitable for the inverse problem setting, where derivative information is typically indispensable for efficient solution procedures.
 Through exploitation of causality in the forward solution, Eikonax can compute these derivatives through discrete adjoints on timescales much smaller than those for the forward solve.
 
 ### Key Features
@@ -42,8 +42,8 @@ in the project root directory.
 
 #### Usage
 
-Under Usage, we provide guides walkthroughs through the functionalities of Eikonax.
-The [Forward Solver](usage/solve.md) document explains in detail how to set up Eikonax for solving the Eikonal equation. [Parametric Derivatives](usage/derivatives.md) demonstrates how to differentiate the solver, given a computed forward solution.
+Under Usage, we provide walkthroughs of the functionalities of Eikonax.
+The [Forward Solver](usage/solve.md) tutorial explains in detail how to set up Eikonax for solving the Eikonal equation. [Parametric Derivatives](usage/derivatives.md) demonstrates how to differentiate the solver, given a computed forward solution.
 
 #### API Reference
 

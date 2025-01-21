@@ -1,6 +1,6 @@
 
 ![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/main.yaml?label=CI)
-![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/main.yaml?label=Docs)
+![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?label=Docs)
 ![Coverage](https://img.shields.io/codecov/c/github/UQatKIT/Eikonax)
 ![Version](https://img.shields.io/pypi/v/Eikonax)
 ![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FUQatKIT%2FEikonax%2Fmain%2Fpyproject.toml)
@@ -11,7 +11,7 @@
 
 # Eikonax: A Fully Differentiable Solver for the Anisotropic Eikonal Equation
 
-Eikonax is a pure Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
+Eikonax is a pure-Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
 
 $$
 \begin{gather*}

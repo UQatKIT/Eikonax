@@ -4,9 +4,8 @@ In this tutorial, we discuss how to solve the Eikonal equation with Eikonax on a
 
 ## Mesh Setup
 
-As a first step, we screate a unit square mesh $\Omega = [0,1]^2$, with $n_x = n_y = 100$ discretization points in each dimension, resulting in a total of $N=10000$ mesh vertices.
-We rely on `scipy`'s `Delaunay` triangulation capabilities.
-
+As a first step, we create a unit square mesh $\Omega = [0,1]^2$, with $n_x = n_y = 100$ discretization points in each dimension, resulting in a total of $N_V=10000$ mesh vertices.
+We rely on `scipy`'s `Delaunay` triangulation function:
 
 ```py
 import numpy as np
@@ -21,7 +20,7 @@ vertices = triangulation.points
 simplices = triangulation.simplices
 ```
 
-`vertices` and `simplices` define the mesh in a canonical form. The first array of shape $N\times d$ contains the coordinates of all vertices, with their respective index $i$ defined via their position in the global vector. The second array is of shape $N_S \times 3$, where $N_S = 19602$. THe three entries of a simplex $j$, defined by its position in the global vector, contain the three indices $i_1, i_2, i_3$ of the vertices that simplex is composed of.
+`vertices` and `simplices` define the mesh in a canonical form. The first array of shape $N_V\times d$ contains the coordinates of all vertices, with their respective index $i$ defined via their position in the global vector. The second array is of shape $N_S \times 3$, where $N_S = 19602$. The three entries of a simplex $j$, defined by its position in the global vector, contain the indices $i_1, i_2, i_3$ of the vertices that simplex is composed of.
 
 ## Tensor Field
 
@@ -31,7 +30,7 @@ $$
     f(x) = 1 + 10 \exp\big( -50||\mathbf{x} -\bar{\mathbf{x}}||^2 \big) > 0,\quad \bar{\mathbf{x}} = (0.65, 0.65)^T.
 $$
 
-We simply generate that field with `numpy`. The coordinate $\mathbf{x}_i$ for each mesh simples $i$ is set as the center of the respective simplex.
+We generate that field with through a couple of simple `numpy` operations. The coordinate $\mathbf{x}_i$ for each mesh simples $i$ is set as the center of the respective simplex.
 ```py
 simplex_centers = np.mean(vertices[simplices], axis=1)
 inv_speed_values = \
@@ -58,12 +57,12 @@ from eikonax import corefunctions, preprocessing, solver
 ```
 
 
-To begin with, we process the mesh data given by `vertices` and `simplices` to facilitate a vertex-wise update procedure. Such an update requires for each vertex $i$ information on the adjacent simplices and vertices, respectively. On a general triangulation, the number of adjacent simplices may be different for each vertex, resulting in heterogenous data structures. such data cannot be processed with JAX. Therefore, we evaluate the maximum number of adjacent simplices $n_{\text{max}}$ of any vertices in the triangulation, and build up the global array with that size. Superfluous entries are padded with a value of `-1`. For every vertex $i$, we then get an array of shape $n_{\text{max}} \times 4$, where the for entries contain (for non-padded data) the index $j$ of an adjacent simplex, as well as the indices of the vertices composing that triangle. This includes, for convenience, the vertex $i$ itself. We perform the described procedure with the 
+To begin with, we process the mesh data given by `vertices` and `simplices` to facilitate a vertex-wise update procedure. Such an update requires for each vertex $i$ information on the adjacent simplices and vertices, respectively. On a general triangulation, the number of adjacent simplices may be different for each vertex, resulting in heterogenous data structures. such data cannot be processed with JAX. Therefore, we evaluate the maximum number of adjacent simplices $n_{\text{max}}$ of any vertices in the triangulation, and build up the global array with that size. Superfluous entries are padded with a value of `-1`. For every vertex $i$, we then get an array of shape $n_{\text{max}} \times 4$, where the four entries in the last dimension contain (for non-padded data) the index $j$ of an adjacent simplex, as well as the indices of the vertices composing that triangle. This includes, for convenience, the vertex $i$ itself. We perform the described procedure with the 
 [`get_adjacent_vertex_data`][eikonax.preprocessing.get_adjacent_vertex_data] method,
 ```py
 adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
 ```
-where the resulting adjacency data is of shape $N\times n_{\text{max}} \times 4$. Subsequently, we can initialize a [`MeshData`][eikonax.corefunctions.MeshData] object to be used by the solver,
+where the resulting adjacency data is of shape $N_V\times n_{\text{max}} \times 4$. Subsequently, we can initialize a [`MeshData`][eikonax.corefunctions.MeshData] object to be used by the solver,
 ```py
 mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
 ```
@@ -73,7 +72,7 @@ For a well-defined solution of the eikonal equation, we further require a set of
 initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
 ```
 
-Lastly, we set up the configuration for the Eikonax solver with the [`SolverData`][eikonax.solver.SolverData] object:
+Lastly, we set up the configuration for the Eikonax solver via the [`SolverData`][eikonax.solver.SolverData] object:
 ```py
 solver_data = solver.SolverData(
     tolerance=1e-8,
@@ -88,12 +87,12 @@ solver_data = solver.SolverData(
 
 The above data class requires some further elaboration, which we give in the following:
 
-- **`tolerance`** is the absolute difference in supremum norm $||\mathbf{u}^{(k+1)} - \mathbf{u}^{(k)}||$ of two solution vector iterates, according to the global update procedure $\mathbf{u}^{(k+1)} = \mathbf{G}(\mathbf{u}^{(k)})$. For tolerance-based solvers, the iteartion terminates when this tolerance is undercut.
+- **`tolerance`** is the absolute difference in supremum norm $||\mathbf{u}^{(k+1)} - \mathbf{u}^{(k)}||$ of two solution vector iterates, according to the global update procedure $\mathbf{u}^{(k+1)} = \mathbf{G}(\mathbf{u}^{(k)})$. For tolerance-based solvers, the iteration terminates when this tolerance is undercut.
 - **`max_num_iterations`** indicates the maximum number of iterations after which a solver is terminated, regardless of a reached tolerance.
 - **`loop_type`** determines the outer loop procedure. Currently implemented options are:
     1. `jitted_for`: JIT-compiles with JAX, runs a fixed number of iterations prescribed through `max_num_iterations`
     2. `jitted_while`: JIT-compiles with JAX, runs until `tolerance` is reached or maximum number of iterations has been performed.
-    3. `nonjitted_while`: Like `jitted_while`, but not JIT-compiles with JAX
+    3. `nonjitted_while`: Like `jitted_while`, but not JIT-compiled with JAX
    
         !!! warning
             Non-jitted loops are very slow, and should only be used for small, exploratory runs. On the other hand, a [Logger][eikonax.logging.Logger] can be passed to the solver for additional output.

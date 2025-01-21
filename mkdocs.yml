@@ -32,6 +32,8 @@ theme:
       toggle:
         icon: material/toggle-switch-off-outline
         name: Switch to light mode
+
+  # Set Icons
   favicon: images/radio_tower.png
   icon:
     annotation: material/plus-circle
