@@ -6,7 +6,7 @@ name = "eikonax"
 requires-python = ">= 3.12"
 dynamic = ["version"]
 readme = "README.md"
-license = { text = "GPL-3.0-only" }
+license = { text = "MIT" }
 keywords = ["eikonal equation", "automatic differentiation", "GPU acceleration"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -14,7 +14,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Environment :: GPU :: NVIDIA CUDA",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+  "License :: OSI Approved :: MIT License",
 ]
 urls = { repository = "https://github.com/UQatKIT/Eikonax", documentation = "https://uqatkit.github.io/Eikonax/" }
 
