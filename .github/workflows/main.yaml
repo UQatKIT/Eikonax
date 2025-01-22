@@ -19,14 +19,31 @@ concurrency:
 
 # -- Jobs ------------------------------------------------------------------------------------------
 jobs:
+  # Format code with Ruff (checks for failure)
+  format:
+    runs-on: ubuntu-latest
+    if: ${{
+      github.event_name == 'workflow_dispatch'||
+      github.event_name == 'push' ||
+      github.event.pull_request.merged == true
+      }}
+    steps:
+      - name: Checkout code
+        id: checkout-code
+        uses: actions/checkout@v4
+      - name: Format with ruff
+        id: format-with-ruff
+        uses: astral-sh/ruff-action@v3
+        with:
+          args: "format"
+
   #Build documentation without deploying
   docs:
     runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
+    if: ${{
+      github.event_name == 'workflow_dispatch'||
+      github.event_name == 'push' ||
+      github.event.pull_request.merged == true
       }}
     steps:
       - name: Checkout code
@@ -47,11 +64,10 @@ jobs:
   # Run tests with Pytest, upload coverage report if main is changed
   test:
     runs-on: ubuntu-latest
-    if :
-      ${{
-        github.event_name == 'workflow_dispatch'||
-        github.event_name == 'push' ||
-        github.event.pull_request.merged == true
+    if: ${{
+      github.event_name == 'workflow_dispatch'||
+      github.event_name == 'push' ||
+      github.event.pull_request.merged == true
       }}
     environment: main
     steps:
