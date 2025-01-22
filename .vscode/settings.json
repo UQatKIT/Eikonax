@@ -13,7 +13,8 @@
         "user guide",
         "usage",
         "derivatives",
-        "format"
+        "format",
+        "pre-commit"
     ],
     "python.testing.pytestArgs": [
         "test"
