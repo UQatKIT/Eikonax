@@ -10,15 +10,15 @@ under the constraint that $\mathbf{M}$ is pointwise s.p.d.
 In the following, we consider the scenario of having some loss functional
 $l: \mathbb{R}^{N_V} \to \mathbb{R},\ l = l(\mathbf{u})$, depending on the solution $\mathbf{u}(\mathbf{M})$
 of the eikonal equation for a specific tensor field $\mathbf{M}(\mathbf{m})$. In various problem settings,
-such as minimization of the loss, it is essential to be able to obtain gradients w.r.t. the input parameter
+such as minimization of the loss, it is essential to be able to obtain the gradient $\mathbf{g}$ w.r.t. the input parameter
 vector,
 
 $$
-    g(\mathbf{m}) = \frac{d l(\mathbf{u})}{d\mathbf{u}}\frac{d\mathbf{u}(\mathbf{M})}{d\mathbf{M}}\frac{d\mathbf{M}(\mathbf{m})}{d\mathbf{m}}.
+    \mathbf{g}(\mathbf{m}) = \frac{d l(\mathbf{u})}{d\mathbf{u}}\frac{d\mathbf{u}(\mathbf{M})}{d\mathbf{M}}\frac{d\mathbf{M}(\mathbf{m})}{d\mathbf{m}}.
 $$
 
 This is the scenario we cover in this tutorial. Eikonax follows a *discretize-then-optimize* approach
-to computing the gradient. Moreover, it efficiently computes discrete adjoints by exploitsing the causality in the
+to computing the gradient. Moreover, it efficiently computes discrete adjoints by exploiting the causality in the
 forward solution of the eikonal equation. A detailed description of this procedure is given
 [here][eikonax.derivator.DerivativeSolver].
 
@@ -101,7 +101,18 @@ solution = eikonax_solver.run(parameter_field)
 
 ## Partial Derivatives
 
-Evaluating the gradient $g(\mathbf{m})$ is a two-step procedure in Eikonax.
+Evaluating the gradient $g(\mathbf{m})$ is a two-step procedure in Eikonax. Firstly, we evaluate for a
+given parameter vector $\mathbf{m}$ and associated solution $\mathbf{u}$ the
+partial derivatives $\mathbf{G}_u$ and $\mathbf{G}_M$ of the global update operator in the
+[iterative solver][eikonax.solver.Solver]. This can be done with the
+[`PartialDerivator`][eikonax.derivator.PartialDerivator] object. Its configuration in 
+[`PartialDerivator`][eikonax.derivator.PartialDerivatorData] is analogous to that of the
+[forward solver](./solve.md).
+
+!!! note
+    First derivatives do not require a differentiable transformation for the update parameter $\lambda$.
+    Second derivatives do, however.
+
 ```py
 from eikonax import derivator
 
@@ -113,27 +124,69 @@ derivator_data = derivator.PartialDerivatorData(
 eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
 ```
 
+We can obtain sparse representations (through local dependencies) of the partial derivatives via
+the [`compute_partial_derivatives`][eikonax.derivator.PartialDerivator.compute_partial_derivatives]
+method,
 ```py
 sparse_partial_solution, sparse_partial_tensor = \
     eikonax_derivator.compute_partial_derivatives(solution.values, parameter_field)
 ```
-
+$\mathbf{G}_u$ and $\mathbf{G}_M$ are both returned as intermediate representations in the form of 
+tuples of vectors.
+Lastly, we compute $\mathbf{G}_m$ from the chain rule and under usage of the tensor field derivative
+$\frac{d\mathbf{M}}{d\mathbf{m}}$. This is handled by the tensor field component through the
+[`assemble_jacobian`][eikonax.tensorfield.TensorField.assemble_jacobian] method,
 ```py
 sparse_partial_parameter = \
     tensor_field.assemble_jacobian(solution.values.size, sparse_partial_tensor, parameter_vector)
 ```
+This operation returns a scipy [`coo_matrix`](https://scipy.github.io/devdocs/reference/generated/scipy.sparse.coo_matrix.html)
+which is readily usable for further algebraic operations.
 
 
 ## Derivative Solver
-
+With the partial derivative, we can not set up a sparse, triangular equation system for computing discrete adjoints,
+and subsequently the gradient $\mathbf{g}$. The rational behind this procedure is explained in more detail 
+[here][eikonax.derivator.DerivativeSolver]. We set up the solver for the equation system with the
+[`DerivativeSolver`][eikonax.derivator.DerivativeSolver] component,
 ```py
 derivative_solver = derivator.DerivativeSolver(solution.values, sparse_partial_solution)
 ```
 
+We can now evaluate the discrete adjoint from a given loss gradient $\frac{dl}{d\mathbf{u}}$,
 ```py
 loss_grad = np.ones(solution.values.size)
 adjoint = derivative_solver.solve(loss_grad)
+```
+
+We then obtain the gradient by simple multiplication of the adjoint with $\mathbf{G}_m$,
+
+```py
 total_grad = partial_derivative_parameter.T @ adjoint
 ```
 
+!!! tip "Reusability of the gradient copmutation"
+    The setup of the derivative solver and $\mathbf{G}_m$ basically constitutes a sparse representation
+    of the entire parametric Jacobian $\mathbf{J}$ at a point $\mathbf{m}$. Once assembled, arbitrary portions of
+    the Jacobian can be constructed with negligible cost, even for large systems.
+
 ## Comparison to Finite Differences
+
+As a proof-of-concept, we compare the Jacobian $\mathbf{J}$ at the point $\mathbf{m}$ produced by Eikonax
+to forward finite differences. With Eikonax, we simply evaluate the gradient for all unit vectors
+$\mathbf{e}_i,\ i=1,\ldots,N_V$ as "loss gradient" $\frac{dl}{d\mathbf{u}}$. Each such computation
+yields a row $\mathbf{J}_i$ of the Jacobian. With finite difference, we evaluate a column $\mathbf{J}_j$
+of the jacobian as
+
+$$
+    \mathbf{J}_j = \frac{\partial\mathbf{u}}{\partial m_j} \approx \frac{\mathbf{u}(\mathbf{m} + h\mathbf{e}_j) - \mathbf{u}(\mathbf{m})}{h},
+$$
+
+with $j=1,\ldots,N_S$, and $h$ denotes the step width of the finite difference scheme. 
+
+The figure below shows the difference of the Jacobian matricesk in Frobennius norm for $h\in[1\mathrm{e}{-5}, 1\mathrm{e}{-1}]$.
+As can be expected, the error decreases linearly for decreasing $h$ down to the square root of the floating point precision
+(32 bit in this case). Beyond this threshold, the error increases again due to round-off errors.
+<figure markdown>
+![samples](../images/ug_derivative_fd.png){ width="500" style="display: inline-block" }
+</figure>
