@@ -3,4 +3,4 @@ omit =
     test/*
     examples/*
     src/eikonax/logging.py
-    src/eikonax/finite_diff.py
+    src/eikonax/finitediff.py
