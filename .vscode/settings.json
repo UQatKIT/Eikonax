@@ -14,7 +14,8 @@
         "usage",
         "derivatives",
         "format",
-        "pre-commit"
+        "pre-commit",
+        "setup"
     ],
     "python.testing.pytestArgs": [
         "test"
