@@ -56,4 +56,4 @@ We provide [runnable examples](https://github.com/UQatKIT/Eikonax/tree/main/exam
 ## Acknowledgement and License
 
 Eikonax is being developed in the research group [Uncertainty Quantification](https://www.scc.kit.edu/forschung/uq.php) at KIT.
-It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/)
+It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [MIT License](https://choosealicense.com/licenses/mit/)
