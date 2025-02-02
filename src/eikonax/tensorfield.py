@@ -8,12 +8,12 @@ tensor field is a mapping $\mathbf{M}(\mathbf{m},s)$ that assigns, given a globa
 $\mathbf{m}$, an s.p.d tensor to every simplex $s$ in the mesh. To allow for sufficient flexibility
 in the choice of tensor field, we implement it as a composition of two main components.
 
-1. [`BaseVectorToSimplicesMap`][eikonax.tensorfield.BaseVectorToSimplicesMap] provides the interface
-    for a mapping from the global parameter vector $\mathbf{m}$ to the local parameter values
-    $\mathbf{m}_s$ required to assemble the tensor $\mathbf{M}_s$ for simplex $s$.
-2. [`BaseSimplexTensor`][eikonax.tensorfield.BaseSimplexTensor] provides the interface for the
-    assembly of the local tensor $\mathbf{M}_s$, given the local contributions $\mathbf{m}_s$ and a
-    simplex s.
+1. [`AbstractVectorToSimplicesMap`][eikonax.tensorfield.AbstractVectorToSimplicesMap] provides the
+    interface for a mapping from the global parameter vector $\mathbf{m}$ to the local parameter
+    values $\mathbf{m}_s$ required to assemble the tensor $\mathbf{M}_s$ for simplex $s$.
+2. [`AbstractSimplexTensor`][eikonax.tensorfield.AbstractSimplexTensor] provides the interface for
+    the assembly of the local tensor $\mathbf{M}_s$, given the local contributions $\mathbf{m}_s$
+    and a simplex s.
 
 Concrete implementations of both components are used to initialize the
 [`TensorField`][eikonax.tensorfield.TensorField] object, which vectorizes and differentiates them
@@ -21,9 +21,9 @@ using JAX, to provide the mapping $\mathbf{M}(\mathbf{m})$ and its Jacobian tens
 $\frac{d \mathbf{M}}{d \mathbf{m}}$.
 
 Classes:
-    BaseVectorToSimplicesMap: ABC interface contract for vector-to-simplices maps
+    AbstractVectorToSimplicesMap: ABC interface contract for vector-to-simplices maps
     LinearScalarMap: Simple one-to-one map from global to simplex parameters
-    BaseSimplexTensor: ABC interface contract for assembly of the tensor field
+    AbstractSimplexTensor: ABC interface contract for assembly of the tensor field
     LinearScalarSimplexTensor: SimplexTensor implementation relying on one parameter per simplex
     InvLinearScalarSimplexTensor: SimplexTensor implementation relying on one parameter per simplex
     TensorField: Tensor field component
@@ -352,9 +352,9 @@ class TensorField(eqx.Module):
 
         Args:
             num_simplices (int): Number of simplices in the mesh
-            vector_to_simplices_map (BaseVectorToSimplicesMap): Mapping from global to simplex
+            vector_to_simplices_map (AbstractVectorToSimplicesMap): Mapping from global to simplex
                 parameters
-            simplex_tensor (BaseSimplexTensor): Tensor field assembly for a given simplex
+            simplex_tensor (AbstractSimplexTensor): Tensor field assembly for a given simplex
         """
         self._num_simplices = num_simplices
         self._simplex_inds = jnp.arange(num_simplices, dtype=jnp.int32)

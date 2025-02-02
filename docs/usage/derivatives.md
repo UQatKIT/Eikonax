@@ -43,9 +43,9 @@ In the [Forward Solver](./solve.md) tutorial, we have constructed a specific ten
 `numpy` array. To evaluate derivatives, however, we need to properly define a mapping $\mathbf{M}(\mathbf{m})$,
 and its derivative. Such a mapping is provided by the [tensorfield][eikonax.tensorfield] module.
 The tensor field module comprises interfaces and basic implementations for two separate components.
-The [`SimplexTensor`][eikonax.tensorfield.BaseSimplexTensor] describes how, for a given simplex index
+The [`SimplexTensor`][eikonax.tensorfield.AbstractSimplexTensor] describes how, for a given simplex index
 $s$ and local parameter vector $\mathbf{m}_s$, the tensor $M_s$ for that simplex is constructed.
-The [`VectorToSimplicesMap`][eikonax.tensorfield.BaseVectorToSimplicesMap], in turn, defines the
+The [`VectorToSimplicesMap`][eikonax.tensorfield.AbstractVectorToSimplicesMap], in turn, defines the
 comtributions to $\mathbf{m}_s$ from the global parameter vector $\mathbf{m}$ for a given simplex s.
 The actual [`TensorField`][eikonax.tensorfield.TensorField] object is created from these two components.
 
@@ -67,7 +67,7 @@ tensor_field_object = tensorfield.TensorField(simplices.shape[0], tensor_field_m
 ```
 
 The `tensor_field_object` is an intelligent mapping for any valid input vector $\mathbf{m}$. For
-demonstration purposes, we simply create a random inpur vector and build the tensor field with the
+demonstration purposes, we simply create a random input vector and build the tensor field with the
 [`assemble_field`][eikonax.tensorfield.TensorField.assemble_field] method,
 ```py
 import numpy as np
@@ -95,8 +95,8 @@ solver_data = solver.SolverData(
     softminmax_cutoff=0.01,
 )
 initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
-eikonax_solver = solver.Solver(mesh_data, solver_data, tensor_field_instance)
-solution = eikonax_solver.run(parameter_field)
+eikonax_solver = solver.Solver(mesh_data, solver_data, initial_sites)
+solution = eikonax_solver.run(tensor_field_instance)
 ```
 
 ## Partial Derivatives
@@ -106,7 +106,7 @@ given parameter vector $\mathbf{m}$ and associated solution $\mathbf{u}$ the
 partial derivatives $\mathbf{G}_u$ and $\mathbf{G}_M$ of the global update operator in the
 [iterative solver][eikonax.solver.Solver]. This can be done with the
 [`PartialDerivator`][eikonax.derivator.PartialDerivator] object. Its configuration in 
-[`PartialDerivator`][eikonax.derivator.PartialDerivatorData] is analogous to that of the
+[`PartialDerivatorData`][eikonax.derivator.PartialDerivatorData] is analogous to that of the
 [forward solver](./solve.md).
 
 !!! note
@@ -129,7 +129,7 @@ the [`compute_partial_derivatives`][eikonax.derivator.PartialDerivator.compute_p
 method,
 ```py
 sparse_partial_solution, sparse_partial_tensor = \
-    eikonax_derivator.compute_partial_derivatives(solution.values, parameter_field)
+    eikonax_derivator.compute_partial_derivatives(solution.values, tensor_field_instance)
 ```
 $\mathbf{G}_u$ and $\mathbf{G}_M$ are both returned as intermediate representations in the form of 
 tuples of vectors.
@@ -145,7 +145,7 @@ which is readily usable for further algebraic operations.
 
 
 ## Derivative Solver
-With the partial derivative, we can not set up a sparse, triangular equation system for computing discrete adjoints,
+With the partial derivative, we can now set up a sparse, triangular equation system for computing discrete adjoints,
 and subsequently the gradient $\mathbf{g}$. The rational behind this procedure is explained in more detail 
 [here][eikonax.derivator.DerivativeSolver]. We set up the solver for the equation system with the
 [`DerivativeSolver`][eikonax.derivator.DerivativeSolver] component,
@@ -162,7 +162,7 @@ adjoint = derivative_solver.solve(loss_grad)
 We then obtain the gradient by simple multiplication of the adjoint with $\mathbf{G}_m$,
 
 ```py
-total_grad = partial_derivative_parameter.T @ adjoint
+total_grad = sparse_partial_parameter.T @ adjoint
 ```
 
 !!! tip "Reusability of the gradient copmutation"
@@ -175,16 +175,38 @@ total_grad = partial_derivative_parameter.T @ adjoint
 As a proof-of-concept, we compare the Jacobian $\mathbf{J}$ at the point $\mathbf{m}$ produced by Eikonax
 to forward finite differences. With Eikonax, we simply evaluate the gradient for all unit vectors
 $\mathbf{e}_i,\ i=1,\ldots,N_V$ as "loss gradient" $\frac{dl}{d\mathbf{u}}$. Each such computation
-yields a row $\mathbf{J}_i$ of the Jacobian. With finite difference, we evaluate a column $\mathbf{J}_j$
+yields a row $\mathbf{J}_i$ of the Jacobian.
+To this end, Eikonax provides the utility function [`compute_eikonax_jacobian`][eikonax.derivator.compute_eikonax_jacobian],
+```python
+eikonax_jacobian = derivator.compute_eikonax_jacobian(derivative_solver, sparse_partial_parameter)
+```
+
+With finite difference, we evaluate a column $\mathbf{J}_j$
 of the jacobian as
 
 $$
     \mathbf{J}_j = \frac{\partial\mathbf{u}}{\partial m_j} \approx \frac{\mathbf{u}(\mathbf{m} + h\mathbf{e}_j) - \mathbf{u}(\mathbf{m})}{h},
 $$
 
-with $j=1,\ldots,N_S$, and $h$ denotes the step width of the finite difference scheme. 
+with $j=1,\ldots,N_S$, and $h$ denotes the step width of the finite difference scheme. Again,
+we use an Eikonax utility module, [`finitediff`][eikonax.finitediff],
 
-The figure below shows the difference of the Jacobian matricesk in Frobennius norm for $h\in[1\mathrm{e}{-5}, 1\mathrm{e}{-1}]$.
+```python
+step_widths = np.logspace(-5, -1, 101)
+errors = []
+for step_width in step_widths:
+    finite_diff_jacobian = finitediff.compute_fd_jacobian(
+        eikonax_solver=eikonal_solver,
+        tensor_field=tensor_field_object,
+        stencil=finitediff.finite_diff_1_forward,
+        eval_point=parameter_vector,
+        step_width=step_width,
+    )
+    error = np.linalg.norm(finite_diff_jacobian - eikonax_jacobian)
+    errors.append(error)
+```
+
+The figure below shows the difference of the Jacobian matrices in Frobenius norm for $h\in[1\mathrm{e}{-5}, 1\mathrm{e}{-1}]$.
 As can be expected, the error decreases linearly for decreasing $h$ down to the square root of the floating point precision
 (32 bit in this case). Beyond this threshold, the error increases again due to round-off errors.
 <figure markdown>
