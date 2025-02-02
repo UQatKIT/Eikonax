@@ -29,7 +29,8 @@ Classes:
     TensorField: Tensor field component
 """
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from typing import final
 
 import equinox as eqx
 import jax
@@ -42,7 +43,7 @@ from jaxtyping import Real as jtReal
 
 
 # ==================================================================================================
-class BaseVectorToSimplicesMap(ABC, eqx.Module):
+class AbstractVectorToSimplicesMap(eqx.Module, strict=True):
     """ABC interface contract for vector-to-simplices maps.
 
     Every component derived from this class needs to implement the `map` method, which maps returns
@@ -82,7 +83,8 @@ class BaseVectorToSimplicesMap(ABC, eqx.Module):
 
 
 # --------------------------------------------------------------------------------------------------
-class LinearScalarMap(BaseVectorToSimplicesMap):
+@final
+class LinearScalarMap(AbstractVectorToSimplicesMap):
     r"""Simple one-to-one map from global to simplex parameters.
 
     Every simplex takes exactly one parameter $m_s$, which is sorted in the global parameter
@@ -109,7 +111,7 @@ class LinearScalarMap(BaseVectorToSimplicesMap):
 
 
 # ==================================================================================================
-class BaseSimplexTensor(ABC, eqx.Module):
+class AbstractSimplexTensor(eqx.Module, strict=True):
     """ABC interface contract for assembly of the tensor field.
 
     `SimplexTensor` components assemble the tensor field for a given simplex and a set of parameters
@@ -127,13 +129,15 @@ class BaseSimplexTensor(ABC, eqx.Module):
     """
 
     # Equinox modules are data classes, so we have to define attributes at the class level
-    _dimension: int
+    _dimension: eqx.AbstractVar[int]
 
     # ----------------------------------------------------------------------------------------------
-    def __init__(self, dimension: int) -> None:
-        """Constructor, simply fixes the dimension of the tensor field."""
-        self._dimension = dimension
+    def __check_init__(self) -> None:
+        """Check that dimension is initialized correctly in subclasses."""
+        if not isinstance(self._dimension, int):
+            raise TypeError("Dimension must be an integer")
 
+    # ----------------------------------------------------------------------------------------------
     @abstractmethod
     def assemble(
         self,
@@ -158,6 +162,7 @@ class BaseSimplexTensor(ABC, eqx.Module):
         """
         raise NotImplementedError
 
+    # ----------------------------------------------------------------------------------------------
     @abstractmethod
     def derivative(
         self,
@@ -184,8 +189,9 @@ class BaseSimplexTensor(ABC, eqx.Module):
         raise NotImplementedError
 
 
-# --------------------------------------------------------------------------------------------------
-class LinearScalarSimplexTensor(BaseSimplexTensor):
+# ==================================================================================================
+@final
+class LinearScalarSimplexTensor(AbstractSimplexTensor):
     r"""SimplexTensor implementation relying on one parameter per simplex.
 
     Given a scalar parameter $m_s$, the tensor field is assembled as $m_s \cdot \mathbf{I}$, where
@@ -196,6 +202,18 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         derivative: Parametric derivative of the `assemble` method
     """
 
+    _dimension: int
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, dimension: int) -> None:
+        """Constructor.
+
+        Args:
+            dimension (int): Dimension of the tensor field
+        """
+        self._dimension = dimension
+
+    # ----------------------------------------------------------------------------------------------
     def assemble(
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim"]:
@@ -213,6 +231,7 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         tensor = parameters * jnp.identity(self._dimension, dtype=jnp.float32)
         return tensor
 
+    # ----------------------------------------------------------------------------------------------
     def derivative(
         self, _simplex_ind: jtInt[jax.Array, ""], _parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
@@ -229,8 +248,9 @@ class LinearScalarSimplexTensor(BaseSimplexTensor):
         return derivative
 
 
-# --------------------------------------------------------------------------------------------------
-class InvLinearScalarSimplexTensor(BaseSimplexTensor):
+# ==================================================================================================
+@final
+class InvLinearScalarSimplexTensor(AbstractSimplexTensor):
     r"""SimplexTensor implementation relying on one parameter per simplex.
 
     Given a scalar parameter $m_s$, the tensor field is assembled as
@@ -241,6 +261,18 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
         derivative: Parametric derivative of the `assemble` method
     """
 
+    _dimension: int
+
+    # ----------------------------------------------------------------------------------------------
+    def __init__(self, dimension: int) -> None:
+        """Constructor.
+
+        Args:
+            dimension (int): Dimension of the tensor field
+        """
+        self._dimension = dimension
+
+    # ----------------------------------------------------------------------------------------------
     def assemble(
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim"]:
@@ -258,6 +290,7 @@ class InvLinearScalarSimplexTensor(BaseSimplexTensor):
         tensor = 1 / parameters * jnp.identity(self._dimension, dtype=jnp.float32)
         return tensor
 
+    # ----------------------------------------------------------------------------------------------
     def derivative(
         self, _simplex_ind: jtInt[jax.Array, ""], parameters: jtFloat[jax.Array, ""]
     ) -> jtFloat[jax.Array, "dim dim num_parameters_local"]:
@@ -302,15 +335,15 @@ class TensorField(eqx.Module):
     # Equinox modules are data classes, so we have to define attributes at the class level
     _num_simplices: int
     _simplex_inds: jtFloat[jax.Array, "num_simplices"]
-    _vector_to_simplices_map: BaseVectorToSimplicesMap
-    _simplex_tensor: BaseSimplexTensor
+    _vector_to_simplices_map: AbstractVectorToSimplicesMap
+    _simplex_tensor: AbstractSimplexTensor
 
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
         num_simplices: int,
-        vector_to_simplices_map: BaseVectorToSimplicesMap,
-        simplex_tensor: BaseSimplexTensor,
+        vector_to_simplices_map: AbstractVectorToSimplicesMap,
+        simplex_tensor: AbstractSimplexTensor,
     ) -> None:
         """Constructor.
 
