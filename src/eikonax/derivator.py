@@ -586,7 +586,8 @@ class DerivativeSolver:
         \mathbf{u}(\mathbf{m}) = \mathbf{G}(\mathbf{u}(\mathbf{m}), \mathbf{M}(\mathbf{m}))
     $$
 
-    To obtain the Jacobian $\mathbf{J} = \frac{d\mathbf{u}}{d\mathbf{m}}\in\mathbb{R}^{N_V\times M}$,
+    To obtain the Jacobian
+    $\mathbf{J} = \frac{d\mathbf{u}}{d\mathbf{m}}\in\mathbb{R}^{N_V\times M}$,
     we simply differentiate the fixed point relation,
 
     $$
