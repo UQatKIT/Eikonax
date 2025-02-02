@@ -30,6 +30,7 @@ Classes:
 """
 
 from abc import abstractmethod
+from typing import final
 
 import equinox as eqx
 import jax
@@ -82,6 +83,7 @@ class AbstractVectorToSimplicesMap(eqx.Module, strict=True):
 
 
 # --------------------------------------------------------------------------------------------------
+@final
 class LinearScalarMap(AbstractVectorToSimplicesMap):
     r"""Simple one-to-one map from global to simplex parameters.
 
@@ -188,6 +190,7 @@ class AbstractSimplexTensor(eqx.Module, strict=True):
 
 
 # ==================================================================================================
+@final
 class LinearScalarSimplexTensor(AbstractSimplexTensor):
     r"""SimplexTensor implementation relying on one parameter per simplex.
 
@@ -246,6 +249,7 @@ class LinearScalarSimplexTensor(AbstractSimplexTensor):
 
 
 # ==================================================================================================
+@final
 class InvLinearScalarSimplexTensor(AbstractSimplexTensor):
     r"""SimplexTensor implementation relying on one parameter per simplex.
 
