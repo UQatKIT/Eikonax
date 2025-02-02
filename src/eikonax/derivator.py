@@ -49,7 +49,7 @@ class PartialDerivatorData:
 
 
 # ==================================================================================================
-class PartialDerivator(eqx.Module):
+class PartialDerivator(eqx.Module, strict=True):
     r"""Component for computing partial derivatives of the Godunov Update operator.
 
     Given a tensor field $M$ and a solution vector $u$, the partial derivator computes the partial
