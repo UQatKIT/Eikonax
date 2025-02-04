@@ -68,6 +68,7 @@ cache-keys = [
   { file = "pyproject.toml" },
   { git = { commit = true, tags = true } },
 ]
+default-groups = []
 
 
 # --------------------------------------------------------------------------------------------------
