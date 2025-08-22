@@ -72,9 +72,9 @@ def meshes_for_2D_forward_evaluation(request):
 @pytest.fixture(scope="module")
 def configurations_for_2D_forward_evaluation(meshes_for_2D_forward_evaluation, eikonax_solver_data):
     vertices, simplices = meshes_for_2D_forward_evaluation
-    initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+    initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
     adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-    mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
     solver_data = solver.SolverData(**eikonax_solver_data)
     return simplices, vertices, mesh_data, solver_data, initial_sites
 
@@ -187,8 +187,8 @@ def setup_derivative_solve_checks(mesh_small):
     )
     vertices, simplices, _ = mesh_small
     adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-    mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
-    initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
     rng = np.random.default_rng(seed=0)
     parameter_vector = rng.uniform(0.5, 1.5, simplices.shape[0])
     parameter_vector = jnp.array(parameter_vector)

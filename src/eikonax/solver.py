@@ -20,7 +20,7 @@ from jaxtyping import Bool as jtBool
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 
-from . import corefunctions, logging
+from . import corefunctions, logging, preprocessing
 
 
 # ==================================================================================================
@@ -137,9 +137,9 @@ class Solver(eqx.Module, strict=True):
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        mesh_data: corefunctions.MeshData,
+        mesh_data: preprocessing.MeshData,
         solver_data: SolverData,
-        initial_sites: corefunctions.InitialSites,
+        initial_sites: preprocessing.InitialSites,
         logger: logging.Logger | None = None,
     ) -> None:
         """Constructor of the solver class.
@@ -148,9 +148,9 @@ class Solver(eqx.Module, strict=True):
         such as the solution of inverse problems.
 
         Args:
-            mesh_data (corefunctions.MeshData): Vertex-based mesh data.
+            mesh_data (preprocessing.MeshData): Vertex-based mesh data.
             solver_data (SolverData): Settings for the solver.
-            initial_sites (corefunctions.InitialSites): vertices and values for source points
+            initial_sites (preprocessing.InitialSites): vertices and values for source points
             logger (logging.Logger | None, optional): Logger object, only required for non-jitted
                 while loops. Defaults to None.
         """

@@ -34,7 +34,7 @@ from eikonax import corefunctions, preprocessing
 
 vertices, simplices = preprocessing.create_test_mesh((0, 1), (0, 1), 3, 3)
 adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
 ```
 
 ## Tensor Field Setup
@@ -94,7 +94,7 @@ solver_data = solver.SolverData(
     softminmax_order=10,
     softminmax_cutoff=0.01,
 )
-initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
 eikonax_solver = solver.Solver(mesh_data, solver_data, initial_sites)
 solution = eikonax_solver.run(tensor_field_instance)
 ```

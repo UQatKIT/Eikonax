@@ -102,9 +102,9 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
     )
     vertices, simplices, tensor_field, initial_sites, derivator_data = input_data
     adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-    initial_sites = corefunctions.InitialSites(**initial_sites)
+    initial_sites = preprocessing.InitialSites(**initial_sites)
     derivator_data = derivator.PartialDerivatorData(**derivator_data)
-    mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
     eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
     sparse_partial_solution, sparse_partial_tensor = eikonax_derivator.compute_partial_derivatives(
         fwd_solution, tensor_field

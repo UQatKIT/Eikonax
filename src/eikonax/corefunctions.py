@@ -3,10 +3,6 @@
 This module contains atomic functions that make up the Eikonax solver routines. They (and their
 automatic derivatives computed with JAX) are further used to evaluate parametric derivatives.
 
-Classes:
-    MeshData: Data characterizing a computational mesh from a vertex-centered perspective.
-    InitialSites: Initial site info.
-
 Functions:
     compute_softminmax: Smooth double ReLU-type approximation that restricts a variable to the
         interval [0, 1].
@@ -24,68 +20,13 @@ Functions:
     grad_average: JAX-compatible computation of the gradient of the average function.
 """
 
-from collections.abc import Iterable
-from dataclasses import dataclass
 from numbers import Real
 
 import jax
 import jax.numpy as jnp
-import numpy.typing as npt
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 from jaxtyping import Real as jtReal
-
-
-# ==================================================================================================
-@dataclass
-class MeshData:
-    """Data characterizing a computational mesh from a vertex-centered perspective.
-
-    Attributes:
-        vertices (jax.Array | npt.NDArray): The coordinates of the vertices in the mesh.
-            The dimension of this array is `(num_vertices, dim)`, where num_vertices is the number
-            of vertices in the mesh and dim is the dimension of the space in which the mesh is
-            embedded.
-        adjacency_data (jax.Array | npt.NDArray): Adjacency data for each vertex. This is the list
-            of adjacent triangles, together with the two vertices that span the respective triangle
-            with the current vertex. The dimension of this array is
-            `(num_vertices, max_num_adjacent_simplices, 4)`, where max_num_adjacent_simplices is the
-            maximum number of simplices that are adjacent to a vertex in the mesh. All entries have
-            this maximum size, as JAX only operates on homogeneous data structures. If a vertex has
-            fewer than max_num_adjacent_simplices adjacent simplices, the remaining entries are
-            filled with -1.
-    """
-
-    vertices: jtFloat[jax.Array | npt.NDArray, "num_vertices dim"]
-    adjacency_data: jtInt[jax.Array | npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]
-
-    def __post_init__(self) -> None:
-        """Convert to jax arrays."""
-        self.vertices = jnp.array(self.vertices, dtype=jnp.float32)
-        self.adjacency_data = jnp.array(self.adjacency_data, dtype=jnp.int32)
-
-
-@dataclass
-class InitialSites:
-    """Initial site info.
-
-    For a unique solution of the state-constrained Eikonal equation, the solution values need to be
-    given a number of initial points (at least one). Multiple initial sites need to be compatible,
-    in the sense that the arrival time from another source is not smaller than the initial value
-    itself.
-
-    Attributes:
-        inds (jax.Array | npt.NDArray): The indices of the nodes where the initial sites are placed.
-        values (jax.Array | npt.NDArray): The values of the initial sites.
-    """
-
-    inds: jtInt[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
-    values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
-
-    def __post_init__(self) -> None:
-        """Convert to jax arrays."""
-        self.inds = jnp.array(self.inds, dtype=jnp.int32)
-        self.values = jnp.array(self.values, dtype=jnp.float32)
 
 
 # ==================================================================================================

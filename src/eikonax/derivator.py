@@ -23,11 +23,12 @@ import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import scipy as sp
+import sparse as spa
 from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 
-from . import corefunctions
+from . import corefunctions, preprocessing
 
 
 @dataclass
@@ -74,6 +75,8 @@ class PartialDerivator(eqx.Module, strict=True):
     """
 
     # Equinox modules are data classes, so we need to specify attributes on class level
+    _num_vertices: int
+    _num_simplices: int
     _vertices: jtFloat[jax.Array, "num_vertices dim"]
     _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _initial_site_inds: jtInt[jax.Array, "num_initial_sites"]
@@ -85,18 +88,20 @@ class PartialDerivator(eqx.Module, strict=True):
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        mesh_data: corefunctions.MeshData,
+        mesh_data: preprocessing.MeshData,
         derivator_data: PartialDerivatorData,
-        initial_sites: corefunctions.InitialSites,
+        initial_sites: preprocessing.InitialSites,
     ) -> None:
         """Constructor for the partial derivator object.
 
         Args:
-            mesh_data (corefunctions.MeshData): Mesh data object also utilized for the Eikonax
+            mesh_data (preprocessing.MeshData): Mesh data object also utilized for the Eikonax
                 solver, contains adjacency data for every vertex.
             derivator_data (PartialDerivatorData): Settings for initialization of the derivator.
-            initial_sites (corefunctions.InitialSites): Locations and values at source points
+            initial_sites (preprocessing.InitialSites): Locations and values at source points
         """
+        self._num_vertices = mesh_data.num_vertices
+        self._num_simplices = mesh_data.num_simplices
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._initial_site_inds = initial_sites.inds
@@ -110,18 +115,7 @@ class PartialDerivator(eqx.Module, strict=True):
         self,
         solution_vector: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
         tensor_field: jtFloat[jax.Array | npt.NDArray, "num_simplices dim dim"],
-    ) -> tuple[
-        tuple[
-            jtInt[jax.Array, "num_sol_values"],
-            jtInt[jax.Array, "num_sol_values"],
-            jtFloat[jax.Array, "num_sol_values"],
-        ],
-        tuple[
-            jtInt[jax.Array, "num_param_values"],
-            jtInt[jax.Array, "num_param_values"],
-            jtFloat[jax.Array, "num_param_values dim dim"],
-        ],
-    ]:
+    ) -> tuple[spa.COO, spa.COO]:
         """Compute the partial derivatives of the Godunov update operator.
 
         This method provided the main interface for computing the partial derivatives of the global
@@ -174,11 +168,7 @@ class PartialDerivator(eqx.Module, strict=True):
         partial_derivative_solution: jtFloat[
             jax.Array, "num_vertices max_num_adjacent_simplices 2"
         ],
-    ) -> tuple[
-        jtInt[jax.Array, "num_sol_values"],
-        jtInt[jax.Array, "num_sol_values"],
-        jtFloat[jax.Array, "num_sol_values"],
-    ]:
+    ) -> spa.COO:
         """Compress the partial derivative data with respect to the solution vector.
 
         Compression consists of two steps:
@@ -189,8 +179,7 @@ class PartialDerivator(eqx.Module, strict=True):
 
         Args:
             partial_derivative_solution (jax.Array): Raw data from partial derivative computation,
-                with shape `(N, num_adjacent_simplices, 2)`, N depends on the number of identical
-                update paths for the vertices in the mesh.
+                with shape `(N, num_adjacent_simplices, 2)`.
 
         Returns:
             tuple[jax.Array, jax.Array, jax.Array]: Compressed data, represented as rows,
@@ -209,7 +198,12 @@ class PartialDerivator(eqx.Module, strict=True):
         values_compressed = values_compressed.at[initial_site_mask].set(
             jnp.zeros(self._initial_site_inds.shape)
         )
-        return rows_compressed, columns_compressed, values_compressed
+        sparse_coo_matrix = spa.COO(
+            coords=(rows_compressed, columns_compressed),
+            data=values_compressed,
+            shape=(self._num_vertices, self._num_vertices),
+        )
+        return sparse_coo_matrix
 
     # ----------------------------------------------------------------------------------------------
     def _compress_partial_derivative_parameter(
@@ -217,11 +211,7 @@ class PartialDerivator(eqx.Module, strict=True):
         partial_derivative_parameter: jtFloat[
             jax.Array, "num_vertices max_num_adjacent_simplices dim dim"
         ],
-    ) -> tuple[
-        jtInt[jax.Array, "num_param_values"],
-        jtInt[jax.Array, "num_param_values"],
-        jtFloat[jax.Array, "num_param_values dim dim"],
-    ]:
+    ) -> spa.COO:
         """Compress the partial derivative data with respect to the parameter field.
 
         Compression consists of two steps:
@@ -232,30 +222,49 @@ class PartialDerivator(eqx.Module, strict=True):
 
         Args:
             partial_derivative_parameter (jax.Array): Raw data from partial derivative
-                computation, with shape `(N, num_adjacent_simplices, dim, dim)`, N depends on the
-                number of identical update paths for the vertices in the mesh.
+                computation, with shape `(N, num_adjacent_simplices, dim, dim)`.
 
         Returns:
             tuple[jax.Array, jax.Array, jax.Array]: Compressed data, represented as rows,
                 columns and values to be further processes for sparse matrix assembly.
                 Shape depends on number of non-zero entries
         """
+        max_num_adjacent_simplices = self._adjacency_data.shape[0]
         vertex_inds = self._adjacency_data[:, 0, 0]
         simplex_inds = self._adjacency_data[:, :, 3]
         tensor_dim = partial_derivative_parameter.shape[2]
+        tensor_d1_inds = jnp.tile(
+            jnp.array([[0, 0], [1, 1]], dtype=jnp.int32),
+            reps=(self._num_vertices, max_num_adjacent_simplices, 1, 1),
+        )
+        tensor_d2_inds = jnp.tile(
+            jnp.array([[0, 1], [0, 1]], dtype=jnp.int32),
+            reps=(self._num_vertices, max_num_adjacent_simplices, 1, 1),
+        )
 
-        values_reduced = jnp.sum(jnp.abs(partial_derivative_parameter), axis=(2, 3))
-        nonzero_mask = jnp.nonzero(values_reduced)
+        nonzero_mask = jnp.nonzero(partial_derivative_parameter)
         rows_compressed = vertex_inds[nonzero_mask[0]]
-        simplices_compressed = simplex_inds[nonzero_mask]
+        simplices_compressed = simplex_inds[(nonzero_mask[0], nonzero_mask[1])]
+        tensor_d1_compressed = tensor_d1_inds[nonzero_mask]
+        tensor_d2_compressed = tensor_d2_inds[nonzero_mask]
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
         initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
-            jnp.zeros((initial_site_mask[0].size, tensor_dim, tensor_dim))
+            jnp.zeros(initial_site_mask[0].size)
+        )
+        sparse_coo_matrix = spa.COO(
+            coords=(
+                rows_compressed,
+                simplices_compressed,
+                tensor_d1_compressed,
+                tensor_d2_compressed,
+            ),
+            data=values_compressed,
+            shape=(self._num_vertices, self._num_simplices, tensor_dim, tensor_dim),
         )
 
-        return rows_compressed, simplices_compressed, values_compressed
+        return sparse_coo_matrix
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit

@@ -62,14 +62,14 @@ To begin with, we process the mesh data given by `vertices` and `simplices` to f
 ```py
 adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
 ```
-where the resulting adjacency data is of shape $N_V\times n_{\text{max}} \times 4$. Subsequently, we can initialize a [`MeshData`][eikonax.corefunctions.MeshData] object to be used by the solver,
+where the resulting adjacency data is of shape $N_V\times n_{\text{max}} \times 4$. Subsequently, we can initialize a [`MeshData`][eikonax.preprocessing.MeshData] object to be used by the solver,
 ```py
-mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
 ```
 
-For a well-defined solution of the eikonal equation, we further require a set of initial sites $\Gamma\subset\Omega$, for which the solution values are known. In Eikonax, an initial site has to be set in the [`InitialSites`][eikonax.corefunctions.InitialSites] object through the index of the respective mesh vertex. Here, we choose $i = 0$ and $u_0 = 0$,
+For a well-defined solution of the eikonal equation, we further require a set of initial sites $\Gamma\subset\Omega$, for which the solution values are known. In Eikonax, an initial site has to be set in the [`InitialSites`][eikonax.preprocessing.InitialSites] object through the index of the respective mesh vertex. Here, we choose $i = 0$ and $u_0 = 0$,
 ```py
-initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
 ```
 
 Lastly, we set up the configuration for the Eikonax solver via the [`SolverData`][eikonax.solver.SolverData] object:
