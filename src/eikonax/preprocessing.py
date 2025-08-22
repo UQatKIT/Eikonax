@@ -10,6 +10,7 @@ Functions:
 """
 
 from collections.abc import Iterable
+from numbers import Real
 from typing import Annotated
 
 import numpy as np
@@ -22,8 +23,8 @@ from scipy.spatial import Delaunay
 
 # ==================================================================================================
 def create_test_mesh(
-    mesh_bounds_x: Annotated[Iterable[float], Is[lambda x: len(x) == 2]],
-    mesh_bounds_y: Annotated[Iterable[float], Is[lambda x: len(x) == 2]],
+    mesh_bounds_x: Annotated[Iterable[Real], Is[lambda x: len(x) == 2]],
+    mesh_bounds_y: Annotated[Iterable[Real], Is[lambda x: len(x) == 2]],
     num_points_x: Annotated[int, Is[lambda x: x >= 2]],
     num_points_y: Annotated[int, Is[lambda x: x >= 2]],
 ) -> tuple[jtFloat[npt.NDArray, "num_vertices dim"], jtInt[npt.NDArray, "num_simplices 3"]]:
