@@ -1,9 +1,10 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
+import sparse as spa
 from scipy.spatial import Delaunay
 
-from eikonax import corefunctions, derivator, preprocessing, solver, tensorfield
+from eikonax import derivator, preprocessing, solver, tensorfield
 
 
 # ================================= Setup for Tensor Field Check ===================================
@@ -73,8 +74,7 @@ def meshes_for_2D_forward_evaluation(request):
 def configurations_for_2D_forward_evaluation(meshes_for_2D_forward_evaluation, eikonax_solver_data):
     vertices, simplices = meshes_for_2D_forward_evaluation
     initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
-    adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    mesh_data = preprocessing.MeshData(vertices=vertices, simplices=simplices)
     solver_data = solver.SolverData(**eikonax_solver_data)
     return simplices, vertices, mesh_data, solver_data, initial_sites
 
@@ -120,7 +120,8 @@ def setup_analytical_partial_derivative_tests(
     mesh_small,
 ):
     vertices, simplices, _ = mesh_small
-    tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
+    tensor_dim = 2
+    tensor_field = np.repeat(np.identity(tensor_dim)[np.newaxis, :, :], simplices.shape[0], axis=0)
     derivator_data = {
         "use_soft_update": True,
         "softminmax_order": 20,
@@ -131,34 +132,37 @@ def setup_analytical_partial_derivative_tests(
     fwd_solution = jnp.array(
         (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
-    expected_sparse_partial_solution = (
-        jnp.array([0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 7, 7, 8, 8], dtype=jnp.int32),
-        jnp.array([3, 1, 0, 1, 0, 1, 3, 1, 1, 3, 3, 3, 5, 7], dtype=jnp.int32),
-        jnp.array(
+    expected_sparse_partial_solution = spa.COO(
+        coords=(
+            jnp.array([0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 7, 7, 8, 8], dtype=jnp.int32),
+            jnp.array([3, 1, 0, 1, 0, 1, 3, 1, 1, 3, 3, 3, 5, 7], dtype=jnp.int32),
+        ),
+        data=jnp.array(
             [0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5],
             dtype=jnp.float32,
         ),
+        shape=(9, 8),
     )
-    expected_sparse_partial_tensor = (
-        jnp.array([0, 1, 2, 3, 4, 5, 5, 6, 7, 7, 8], dtype=jnp.int32),
-        jnp.array([1, 1, 3, 1, 0, 2, 3, 5, 4, 5, 7], dtype=jnp.int32),
-        jnp.array(
-            [
-                [[0.0, 0.0], [0.0, 0.0]],
-                [[0.0, 0.0], [0.0, 0.25]],
-                [[0.0, 0.0], [0.0, 0.25]],
-                [[0.25, 0.0], [0.0, 0.0]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-                [[0.25, 0.0], [0.0, 0.0]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-                [[0.08838835, 0.08838835], [0.08838835, 0.08838835]],
-            ],
-            dtype=jnp.float32,
-        ),
+
+    vertex_inds = jnp.array([0, 1, 2, 3, 4, 5, 5, 6, 7, 7, 8], dtype=jnp.int32)
+    simplex_inds = jnp.array([1, 1, 3, 1, 0, 2, 3, 5, 4, 5, 7], dtype=jnp.int32)
+    tensor_inds = jnp.arange(tensor_dim, dtype=jnp.int32)
+
+    # fmt: off
+    expected_sparse_partial_tensor = spa.COO(
+        coords=(
+            jnp.array([0, 0, 0 ,0 ,1 ,2 ,3 ,4, 4, 4 ,4 ,5, 5, 5, 5,
+                       5, 5, 5, 5 ,6 ,7 ,7 ,7, 7, 7, 7, 7 ,7, 8, 8, 8, 8],dtype=jnp.int32),
+            jnp.array([1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 2, 2, 2, 2,
+                       3, 3, 3, 3, 5, 4, 4, 4, 4, 5, 5, 5 ,5 ,7 ,7 ,7 ,7],dtype=jnp.int32),
+            jnp.array([0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1,
+                       0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],dtype=jnp.int32),
+            jnp.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1,
+                       0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],dtype=jnp.int32),
     )
+    )
+    # fmt: on
+
     expected_partial_derivatives = (
         expected_sparse_partial_solution,
         expected_sparse_partial_tensor,
@@ -186,8 +190,7 @@ def setup_derivative_solve_checks(mesh_small):
         softminmax_cutoff=1,
     )
     vertices, simplices, _ = mesh_small
-    adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    mesh_data = preprocessing.MeshData(vertices=vertices, simplices=simplices)
     initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
     rng = np.random.default_rng(seed=0)
     parameter_vector = rng.uniform(0.5, 1.5, simplices.shape[0])

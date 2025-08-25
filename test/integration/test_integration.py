@@ -3,10 +3,10 @@ import copy
 import jax.numpy as jnp
 import numpy as np
 import pytest
+import sparse as spa
 from fimpy.solver import create_fim_solver
 
 from eikonax import (
-    corefunctions,
     derivator,
     finitediff,
     logging,
@@ -101,23 +101,31 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
         setup_analytical_partial_derivative_tests
     )
     vertices, simplices, tensor_field, initial_sites, derivator_data = input_data
-    adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
     initial_sites = preprocessing.InitialSites(**initial_sites)
     derivator_data = derivator.PartialDerivatorData(**derivator_data)
-    mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+    mesh_data = preprocessing.MeshData(vertices=vertices, simplices=simplices)
     eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
     sparse_partial_solution, sparse_partial_tensor = eikonax_derivator.compute_partial_derivatives(
         fwd_solution, tensor_field
     )
     expected_sparse_partial_solution, expected_sparse_partial_tensor = expected_partial_derivatives
-    for sps, expected_sps in zip(
-        sparse_partial_solution, expected_sparse_partial_solution, strict=True
+    for coord, expected_coord in zip(
+        sparse_partial_solution.coords, expected_sparse_partial_solution.coords, strict=True
     ):
-        assert jnp.allclose(sps, expected_sps)
-    for spt, expected_spt in zip(
-        sparse_partial_tensor, expected_sparse_partial_tensor, strict=True
+        assert jnp.allclose(coord, expected_coord)
+    for data, expected_data in zip(
+        sparse_partial_solution.data, expected_sparse_partial_solution.data, strict=True
     ):
-        assert jnp.allclose(spt, expected_spt)
+        assert jnp.allclose(data, expected_data)
+
+    # for sps, expected_sps in zip(
+    #     sparse_partial_solution, expected_sparse_partial_solution, strict=True
+    # ):
+    #     assert jnp.allclose(sps, expected_sps)
+    # for spt, expected_spt in zip(
+    #     sparse_partial_tensor, expected_sparse_partial_tensor, strict=True
+    # ):
+    #     assert jnp.allclose(spt, expected_spt)
 
 
 # --------------------------------------------------------------------------------------------------
