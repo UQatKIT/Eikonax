@@ -57,6 +57,7 @@ class MeshData:
     num_simplices: int = field(init=False)
 
     def __post_init__(self) -> None:
+        """Initialize data structures and convert to JAX arrays."""
         self.num_vertices = self.vertices.shape[0]
         self.num_simplices = self.simplices.shape[0]
         self.adjacency_data = get_adjacent_vertex_data(self.simplices, self.num_vertices)
