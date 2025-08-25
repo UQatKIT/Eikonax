@@ -50,7 +50,7 @@ class PartialDerivatorData:
 
 
 # ==================================================================================================
-class PartialDerivator(eqx.Module, strict=True):
+class PartialDerivator(eqx.Module):
     r"""Component for computing partial derivatives of the Godunov Update operator.
 
     Given a tensor field $M$ and a solution vector $u$, the partial derivator computes the partial
@@ -229,24 +229,16 @@ class PartialDerivator(eqx.Module, strict=True):
                 columns and values to be further processes for sparse matrix assembly.
                 Shape depends on number of non-zero entries
         """
-        max_num_adjacent_simplices = self._adjacency_data.shape[0]
         vertex_inds = self._adjacency_data[:, 0, 0]
         simplex_inds = self._adjacency_data[:, :, 3]
         tensor_dim = partial_derivative_parameter.shape[2]
-        tensor_d1_inds = jnp.tile(
-            jnp.array([[0, 0], [1, 1]], dtype=jnp.int32),
-            reps=(self._num_vertices, max_num_adjacent_simplices, 1, 1),
-        )
-        tensor_d2_inds = jnp.tile(
-            jnp.array([[0, 1], [0, 1]], dtype=jnp.int32),
-            reps=(self._num_vertices, max_num_adjacent_simplices, 1, 1),
-        )
+        tensor_inds = jnp.arange(tensor_dim, dtype=jnp.int32)
 
         nonzero_mask = jnp.nonzero(partial_derivative_parameter)
         rows_compressed = vertex_inds[nonzero_mask[0]]
         simplices_compressed = simplex_inds[(nonzero_mask[0], nonzero_mask[1])]
-        tensor_d1_compressed = tensor_d1_inds[nonzero_mask]
-        tensor_d2_compressed = tensor_d2_inds[nonzero_mask]
+        tensor_d1_compressed = tensor_inds[nonzero_mask[2]]
+        tensor_d2_compressed = tensor_inds[nonzero_mask[3]]
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
         initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
@@ -673,11 +665,7 @@ class DerivativeSolver:
     def __init__(
         self,
         solution: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
-        sparse_partial_update_solution: tuple[
-            jtInt[jax.Array, "num_sol_values"],
-            jtInt[jax.Array, "num_sol_values"],
-            jtFloat[jax.Array, "num_sol_values"],
-        ],
+        sparse_partial_update_solution: spa.COO,
     ) -> None:
         r"""Constructor for the derivative solver.
 
@@ -693,11 +681,6 @@ class DerivativeSolver:
         """
         num_points = solution.size
         solution = np.array(solution, dtype=np.float32)
-        sparse_partial_update_solution = (
-            np.array(sparse_partial_update_solution[0], dtype=np.int32),
-            np.array(sparse_partial_update_solution[1], dtype=np.int32),
-            np.array(sparse_partial_update_solution[2], dtype=np.float32),
-        )
         self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
         self._sparse_system_matrix = self._assemble_system_matrix(
             sparse_partial_update_solution, num_points
@@ -760,11 +743,7 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def _assemble_system_matrix(
         self,
-        sparse_partial_update_solution: tuple[
-            jtInt[npt.NDArray, "num_sol_values"],
-            jtInt[npt.NDArray, "num_sol_values"],
-            jtFloat[npt.NDArray, "num_sol_values"],
-        ],
+        sparse_partial_update_solution: spa.COO,
         num_points: int,
     ) -> sp.sparse.csc_matrix:
         r"""Assemble system matrix $\bar{\mathbf{A}}$ for gradient solver.
@@ -781,13 +760,9 @@ class DerivativeSolver:
         Returns:
             sp.sparse.csc_matrix: Sparse representation of the permuted system matrix
         """
-        rows_compressed, columns_compressed, values_compressed = sparse_partial_update_solution
-        sparse_partial_matrix = sp.sparse.csc_matrix(
-            (values_compressed, (rows_compressed, columns_compressed)),
-            shape=(num_points, num_points),
-        )
+        sparse_partial_update_solution = sparse_partial_update_solution.tocsc()
         sparse_identity_matrix = sp.sparse.identity(num_points, format="csc")
-        sparse_system_matrix = sparse_identity_matrix - sparse_partial_matrix
+        sparse_system_matrix = sparse_identity_matrix - sparse_partial_update_solution
         sparse_system_matrix = (
             self._sparse_permutation_matrix
             @ sparse_system_matrix.T
@@ -811,7 +786,8 @@ class DerivativeSolver:
 
 # ==================================================================================================
 def compute_eikonax_jacobian(
-    derivative_solver: DerivativeSolver, partial_derivative_parameter: sp.sparse.coo_matrix
+    derivative_solver: DerivativeSolver,
+    partial_derivative_parameter,
 ) -> npt.NDArray:
     """Compute Jacobian from concatenation of gradients, computed with unit vector RHS.
 
