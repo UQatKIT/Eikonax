@@ -386,7 +386,7 @@ class TensorField(eqx.Module):
             simplex_tensor (AbstractSimplexTensor): Tensor field assembly for a given simplex
         """
         self._num_simplices = num_simplices
-        self._simplex_inds = jnp.arange(num_simplices)
+        self._simplex_inds = jnp.arange(num_simplices, dtype=jnp.int32)
         self._vector_to_simplices_map = vector_to_simplices_map
         self._simplex_tensor = simplex_tensor
 
