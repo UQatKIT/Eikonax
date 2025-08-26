@@ -38,6 +38,9 @@ class MeshData:
             The dimension of this array is `(num_vertices, dim)`, where num_vertices is the number
             of vertices in the mesh and dim is the dimension of the space in which the mesh is
             embedded.
+        simplices (jax.Array | npt.NDArray): The vertex indices for each simplex in the mesh.
+            The dimension of this array is `(num_simplices, 3)`, where num_simplices is the number
+            of simplices in the mesh.
         adjacency_data (jax.Array | npt.NDArray): Adjacency data for each vertex. This is the list
             of adjacent triangles, together with the two vertices that span the respective triangle
             with the current vertex. The dimension of this array is
