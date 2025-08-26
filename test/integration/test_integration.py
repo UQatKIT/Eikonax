@@ -109,23 +109,26 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
         fwd_solution, tensor_field
     )
     expected_sparse_partial_solution, expected_sparse_partial_tensor = expected_partial_derivatives
+
     for coord, expected_coord in zip(
         sparse_partial_solution.coords, expected_sparse_partial_solution.coords, strict=True
     ):
         assert jnp.allclose(coord, expected_coord)
+
     for data, expected_data in zip(
         sparse_partial_solution.data, expected_sparse_partial_solution.data, strict=True
     ):
         assert jnp.allclose(data, expected_data)
 
-    # for sps, expected_sps in zip(
-    #     sparse_partial_solution, expected_sparse_partial_solution, strict=True
-    # ):
-    #     assert jnp.allclose(sps, expected_sps)
-    # for spt, expected_spt in zip(
-    #     sparse_partial_tensor, expected_sparse_partial_tensor, strict=True
-    # ):
-    #     assert jnp.allclose(spt, expected_spt)
+    for coord, expected_coord in zip(
+        sparse_partial_tensor.coords, expected_sparse_partial_tensor.coords, strict=True
+    ):
+        assert jnp.allclose(coord, expected_coord)
+
+    for data, expected_data in zip(
+        sparse_partial_tensor.data, expected_sparse_partial_tensor.data, strict=True
+    ):
+        assert jnp.allclose(data, expected_data)
 
 
 # --------------------------------------------------------------------------------------------------

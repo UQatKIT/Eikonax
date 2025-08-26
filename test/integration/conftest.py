@@ -129,6 +129,7 @@ def setup_analytical_partial_derivative_tests(
     }
     initial_sites = {"inds": (0,), "values": (0,)}
     input_data = (vertices, simplices, tensor_field, initial_sites, derivator_data)
+
     fwd_solution = jnp.array(
         (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
@@ -144,22 +145,25 @@ def setup_analytical_partial_derivative_tests(
         shape=(9, 8),
     )
 
-    vertex_inds = jnp.array([0, 1, 2, 3, 4, 5, 5, 6, 7, 7, 8], dtype=jnp.int32)
-    simplex_inds = jnp.array([1, 1, 3, 1, 0, 2, 3, 5, 4, 5, 7], dtype=jnp.int32)
-    tensor_inds = jnp.arange(tensor_dim, dtype=jnp.int32)
-
     # fmt: off
     expected_sparse_partial_tensor = spa.COO(
         coords=(
             jnp.array([0, 0, 0 ,0 ,1 ,2 ,3 ,4, 4, 4 ,4 ,5, 5, 5, 5,
-                       5, 5, 5, 5 ,6 ,7 ,7 ,7, 7, 7, 7, 7 ,7, 8, 8, 8, 8],dtype=jnp.int32),
+                       5, 5, 5, 5 ,6 ,7 ,7 ,7, 7, 7, 7, 7 ,7, 8, 8, 8, 8], dtype=jnp.int32),
             jnp.array([1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 2, 2, 2, 2,
-                       3, 3, 3, 3, 5, 4, 4, 4, 4, 5, 5, 5 ,5 ,7 ,7 ,7 ,7],dtype=jnp.int32),
+                       3, 3, 3, 3, 5, 4, 4, 4, 4, 5, 5, 5 ,5 ,7 ,7 ,7 ,7], dtype=jnp.int32),
             jnp.array([0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1,
-                       0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1],dtype=jnp.int32),
+                       0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1], dtype=jnp.int32),
             jnp.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1,
-                       0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1],dtype=jnp.int32),
-    )
+                       0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], dtype=jnp.int32),
+        ),
+        data=jnp.array([0.,         0.,         0.,         0.,         0.25,       0.25,
+                        0.25,       0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
+                        0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
+                        0.08838835, 0.25,       0.08838835, 0.08838835, 0.08838835, 0.08838835,
+                        0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
+                        0.08838835, 0.08838835], dtype=jnp.float32),
+        shape=(9, 8, 2, 2),
     )
     # fmt: on
 
@@ -204,13 +208,14 @@ def setup_derivative_solve_checks(mesh_small):
     eikonal_solver = solver.Solver(mesh_data, solver_data, initial_sites)
     solution = eikonal_solver.run(parameter_field)
     eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
-    sparse_partial_solution, sparse_partial_tensor = eikonax_derivator.compute_partial_derivatives(
+    output_partial_solution, output_partial_tensor = eikonax_derivator.compute_partial_derivatives(
         solution.values, parameter_field
     )
-    derivative_solver = derivator.DerivativeSolver(solution.values, sparse_partial_solution)
-    partial_derivative_parameter = tensor_field.assemble_jacobian(
-        solution.values.size, sparse_partial_tensor, parameter_vector
+    tensor_partial_parameter = tensor_field.assemble_jacobian(parameter_vector)
+    output_partial_parameter = spa.einsum(
+        "ijkl,jklm->im", output_partial_tensor, tensor_partial_parameter
     )
+    derivative_solver = derivator.DerivativeSolver(solution.values, output_partial_solution)
 
     return (
         parameter_vector,
@@ -218,5 +223,5 @@ def setup_derivative_solve_checks(mesh_small):
         tensor_field,
         eikonal_solver,
         derivative_solver,
-        partial_derivative_parameter,
+        output_partial_parameter,
     )
