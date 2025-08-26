@@ -384,7 +384,6 @@ class TensorField(eqx.Module):
         return tensor_field
 
     # ----------------------------------------------------------------------------------------------
-    @eqx.filter_jit
     def assemble_jacobian(
         self,
         parameter_vector: jtFloat[jax.Array | npt.NDArray, "num_parameters_global"],
@@ -433,6 +432,8 @@ class TensorField(eqx.Module):
         """
         parameter_vector = jnp.array(parameter_vector)
         coords, values = self._assemble_jacobian_global(parameter_vector)
+        coords = [np.array(co.flatten(), dtype=np.int32) for co in coords]
+        values = np.array(values.flatten(), dtype=np.float32)
         jacobian = spa.COO(
             coords,
             values,
@@ -447,6 +448,7 @@ class TensorField(eqx.Module):
         return jacobian
 
     # ----------------------------------------------------------------------------------------------
+    @eqx.filter_jit
     def _assemble_jacobian_global(
         self, parameter_vector: jtFloat[jax.Array, "num_parameters"]
     ) -> tuple[
@@ -454,8 +456,6 @@ class TensorField(eqx.Module):
     ]:
         assemble_jacobian_global = jax.vmap(self._assemble_jacobian_local, in_axes=(0, None))
         *coords, values = assemble_jacobian_global(self._simplex_inds, parameter_vector)
-        coords = [np.array(co.flatten(), dtype=np.int32) for co in coords]
-        values = np.array(values.flatten(), dtype=np.float32)
 
         return coords, values
 
