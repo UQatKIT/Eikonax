@@ -50,21 +50,18 @@ The resulting field has a circular region of slow conductivity around the center
 
 ## Solver Setup
 
-With the mesh and tensor field, we can now set up the Eikonax solver. This requires the [`corefunctions`][eikonax.corefunctions], [`preprocessing`][eikonax.preprocessing], and [`solver`][eikonax.solver] modules.
+With the mesh and tensor field, we can now set up the Eikonax solver. This requires the [`preprocessing`][eikonax.preprocessing] and [`solver`][eikonax.solver] modules.
 
 ```py
-from eikonax import corefunctions, preprocessing, solver
+from eikonax import preprocessing, solver
 ```
 
 
-To begin with, we process the mesh data given by `vertices` and `simplices` to facilitate a vertex-wise update procedure. Such an update requires for each vertex $i$ information on the adjacent simplices and vertices, respectively. On a general triangulation, the number of adjacent simplices may be different for each vertex, resulting in heterogenous data structures. such data cannot be processed with JAX. Therefore, we evaluate the maximum number of adjacent simplices $n_{\text{max}}$ of any vertices in the triangulation, and build up the global array with that size. Superfluous entries are padded with a value of `-1`. For every vertex $i$, we then get an array of shape $n_{\text{max}} \times 4$, where the four entries in the last dimension contain (for non-padded data) the index $j$ of an adjacent simplex, as well as the indices of the vertices composing that triangle. This includes, for convenience, the vertex $i$ itself. We perform the described procedure with the 
-[`get_adjacent_vertex_data`][eikonax.preprocessing.get_adjacent_vertex_data] method,
+To begin with, we process the mesh data given by `vertices` and `simplices` to facilitate a vertex-wise update procedure. Such an update requires for each vertex $i$ information on the adjacent simplices and vertices, respectively. On a general triangulation, the number of adjacent simplices may be different for each vertex, resulting in heterogenous data structures. such data cannot be processed with JAX. Therefore, we evaluate the maximum number of adjacent simplices $n_{\text{max}}$ of any vertices in the triangulation, and build up the global array with that size. Superfluous entries are padded with a value of `-1`. For every vertex $i$, we then get an array of shape $n_{\text{max}} \times 4$, where the four entries in the last dimension contain (for non-padded data) the index $j$ of an adjacent simplex, as well as the indices of the vertices composing that triangle. This includes, for convenience, the vertex $i$ itself. 
+
+The preprocessing is performed automatically during the initialization of the  [`MeshData`][eikonax.preprocessing.MeshData] object to be used by the solver,
 ```py
-adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-```
-where the resulting adjacency data is of shape $N_V\times n_{\text{max}} \times 4$. Subsequently, we can initialize a [`MeshData`][eikonax.preprocessing.MeshData] object to be used by the solver,
-```py
-mesh_data = preprocessing.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+mesh_data = preprocessing.MeshData(vertices, simplices)
 ```
 
 For a well-defined solution of the eikonal equation, we further require a set of initial sites $\Gamma\subset\Omega$, for which the solution values are known. In Eikonax, an initial site has to be set in the [`InitialSites`][eikonax.preprocessing.InitialSites] object through the index of the respective mesh vertex. Here, we choose $i = 0$ and $u_0 = 0$,
