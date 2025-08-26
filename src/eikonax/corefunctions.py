@@ -30,12 +30,9 @@ from jaxtyping import Real as jtReal
 
 
 # ==================================================================================================
-def compute_softminmax(value: jtReal[jax.Array, "..."], order: int) -> jtFloat[jax.Array, "..."]:
+@jax.custom_gradient
+def compute_softminmax(value, order):  # noqa: ANN001,ANN201
     r"""Smooth double ReLU-type approximation that restricts a variable to the interval $[0, 1]$.
-
-    !!! bug "Unstable AD"
-        While the method itself is stable, its derivative computed with JAX is not for higher orders
-        $\kappa$
 
     Given an input value $x$ and an order parameter $\kappa > 0$, the method performs a
     differentiable transformation according to
@@ -71,7 +68,17 @@ def compute_softminmax(value: jtReal[jax.Array, "..."], order: int) -> jtFloat[j
         1 - jnp.log(1 + jnp.exp(-order * (soft_value - 1))) / order,
     )
     soft_value = (soft_value - lower_bound) / (1 - lower_bound)
-    return soft_value
+
+    def _grad_softminmax(
+        value_increment: jtReal[jax.Array, "..."],
+    ) -> tuple[jtReal[jax.Array, "..."], None]:
+        term_1 = 1 + jnp.exp(-order) + jnp.exp(order * (value - 1))
+        term_2 = 1 + jnp.exp(-order * value)
+        grad = 1 / (term_1 * term_2)
+        grad = grad / (1 - lower_bound)
+        return grad * value_increment, None
+
+    return soft_value, _grad_softminmax
 
 
 # --------------------------------------------------------------------------------------------------
