@@ -4,21 +4,91 @@
     The creation of test meshes can be done with any other tool. The format of the required
     adjacency data for Eikonax is strict, however.
 
+Classes:
+    MeshData: Data characterizing a computational mesh from a vertex-centered perspective.
+    InitialSites: Initial site info.
+
 Functions:
     create_test_mesh: Create a simple test mesh with Scipy's Delauny functionality.
     get_adjacent_vertex_data: Preprocess mesh data for a vertex-centered evaluation.
 """
 
 from collections.abc import Iterable
+from dataclasses import dataclass, field
 from numbers import Real
 from typing import Annotated
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
 from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 from scipy.spatial import Delaunay
+
+
+# ==================================================================================================
+@dataclass
+class MeshData:
+    """Data characterizing a computational mesh from a vertex-centered perspective.
+
+    Attributes:
+        vertices (jax.Array | npt.NDArray): The coordinates of the vertices in the mesh.
+            The dimension of this array is `(num_vertices, dim)`, where num_vertices is the number
+            of vertices in the mesh and dim is the dimension of the space in which the mesh is
+            embedded.
+        simplices (jax.Array | npt.NDArray): The vertex indices for each simplex in the mesh.
+            The dimension of this array is `(num_simplices, 3)`, where num_simplices is the number
+            of simplices in the mesh.
+        adjacency_data (jax.Array | npt.NDArray): Adjacency data for each vertex. This is the list
+            of adjacent triangles, together with the two vertices that span the respective triangle
+            with the current vertex. The dimension of this array is
+            `(num_vertices, max_num_adjacent_simplices, 4)`, where max_num_adjacent_simplices is the
+            maximum number of simplices that are adjacent to a vertex in the mesh. All entries have
+            this maximum size, as JAX only operates on homogeneous data structures. If a vertex has
+            fewer than max_num_adjacent_simplices adjacent simplices, the remaining entries are
+            filled with -1.
+    """
+
+    vertices: jtFloat[jax.Array | npt.NDArray, "num_vertices dim"]
+    simplices: jtInt[jax.Array | npt.NDArray, "num_simplices 3"]
+    adjacency_data: jtInt[jax.Array | npt.NDArray, "num_vertices max_num_adjacent_simplices 4"] = (
+        field(init=False)
+    )
+    num_vertices: int = field(init=False)
+    num_simplices: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        """Initialize data structures and convert to JAX arrays."""
+        self.num_vertices = self.vertices.shape[0]
+        self.num_simplices = self.simplices.shape[0]
+        self.adjacency_data = get_adjacent_vertex_data(self.simplices, self.num_vertices)
+        self.vertices = jnp.array(self.vertices, dtype=jnp.float32)
+        self.simplices = jnp.array(self.simplices, dtype=jnp.int32)
+
+
+@dataclass
+class InitialSites:
+    """Initial site info.
+
+    For a unique solution of the state-constrained Eikonal equation, the solution values need to be
+    given a number of initial points (at least one). Multiple initial sites need to be compatible,
+    in the sense that the arrival time from another source is not smaller than the initial value
+    itself.
+
+    Attributes:
+        inds (jax.Array | npt.NDArray): The indices of the nodes where the initial sites are placed.
+        values (jax.Array | npt.NDArray): The values of the initial sites.
+    """
+
+    inds: jtInt[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
+    values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"] | Iterable
+
+    def __post_init__(self) -> None:
+        """Convert to jax arrays."""
+        self.inds = jnp.array(self.inds, dtype=jnp.int32)
+        self.values = jnp.array(self.values, dtype=jnp.float32)
 
 
 # ==================================================================================================
@@ -65,9 +135,9 @@ def create_test_mesh(
 
 # --------------------------------------------------------------------------------------------------
 def get_adjacent_vertex_data(
-    simplices: jtInt[npt.NDArray, "num_simplices 3"],
+    simplices: jtInt[jax.Array | npt.NDArray, "num_simplices 3"],
     num_vertices: Annotated[int, Is[lambda x: x > 0]],
-) -> jtInt[npt.NDArray, "num_vertices max_num_adjacent_simplices 4"]:
+) -> jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]:
     """Preprocess mesh data for a vertex-centered evaluation.
 
     Standard mesh tools provide vertex coordinates and the vertex indices for each simplex.
@@ -99,4 +169,6 @@ def get_adjacent_vertex_data(
                 [center_vertex, adj_vertex_1, adj_vertex_2, simplex_inds]
             )
             counter_array[center_vertex] += 1
+    adjacent_vertex_inds = jnp.array(adjacent_vertex_inds, dtype=jnp.int32)
+
     return adjacent_vertex_inds

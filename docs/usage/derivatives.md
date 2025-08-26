@@ -33,8 +33,7 @@ compare derivatives against finite differences later.
 from eikonax import corefunctions, preprocessing
 
 vertices, simplices = preprocessing.create_test_mesh((0, 1), (0, 1), 3, 3)
-adjacency_data = preprocessing.get_adjacent_vertex_data(simplices, vertices.shape[0])
-mesh_data = corefunctions.MeshData(vertices=vertices, adjacency_data=adjacency_data)
+mesh_data = preprocessing.MeshData(vertices, simplices)
 ```
 
 ## Tensor Field Setup
@@ -61,9 +60,13 @@ which is basically the map $m_s = \mathbf{m}[s]$. In total, we create our tensor
 ```py
 from eikonax import tensorfield
 
-tensor_on_simplex = tensorfield.InvLinearScalarSimplexTensor(vertices.shape[1])
+tensor_on_simplex = tensorfield.InvLinearScalarSimplexTensor(dimension=vertices.shape[1])
 tensor_field_mapping = tensorfield.LinearScalarMap()
-tensor_field_object = tensorfield.TensorField(simplices.shape[0], tensor_field_mapping, tensor_on_simplex)
+tensor_field_object = tensorfield.TensorField(
+    num_simplices=simplices.shape[0],
+    vector_to_simplices_map=tensor_field_mapping,
+    simplex_tensor=tensor_on_simplex,
+)
 ```
 
 The `tensor_field_object` is an intelligent mapping for any valid input vector $\mathbf{m}$. For
@@ -94,15 +97,15 @@ solver_data = solver.SolverData(
     softminmax_order=10,
     softminmax_cutoff=0.01,
 )
-initial_sites = corefunctions.InitialSites(inds=(0,), values=(0,))
+initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
 eikonax_solver = solver.Solver(mesh_data, solver_data, initial_sites)
 solution = eikonax_solver.run(tensor_field_instance)
 ```
 
 ## Partial Derivatives
 
-Evaluating the gradient $g(\mathbf{m})$ is a two-step procedure in Eikonax. Firstly, we evaluate for a
-given parameter vector $\mathbf{m}$ and associated solution $\mathbf{u}$ the
+Evaluating the gradient $g(\mathbf{m})$ is a two-step procedure in Eikonax. Firstly, we evaluate, for a
+given parameter vector $\mathbf{m}$ and associated solution $\mathbf{u}$, the
 partial derivatives $\mathbf{G}_u$ and $\mathbf{G}_M$ of the global update operator in the
 [iterative solver][eikonax.solver.Solver]. This can be done with the
 [`PartialDerivator`][eikonax.derivator.PartialDerivator] object. Its configuration in 
@@ -128,29 +131,44 @@ We can obtain sparse representations (through local dependencies) of the partial
 the [`compute_partial_derivatives`][eikonax.derivator.PartialDerivator.compute_partial_derivatives]
 method,
 ```py
-sparse_partial_solution, sparse_partial_tensor = \
-    eikonax_derivator.compute_partial_derivatives(solution.values, tensor_field_instance)
+output_partial_solution, output_partial_tensor = eikonax_derivator.compute_partial_derivatives(
+    solution.values, tensor_field_instance
+)
 ```
-$\mathbf{G}_u$ and $\mathbf{G}_M$ are both returned as intermediate representations in the form of 
-tuples of vectors.
-Lastly, we compute $\mathbf{G}_m$ from the chain rule and under usage of the tensor field derivative
-$\frac{d\mathbf{M}}{d\mathbf{m}}$. This is handled by the tensor field component through the
+
+$\mathbf{G}_u$ and $\mathbf{G}_M$ are both returned as
+[sparse COO matrices](https://sparse.pydata.org/en/stable/api/COO/). This is a sparse data format
+analogous to the one in [scipy](https://scipy.org/), but extensible to higher order tensors.
+
+$\mathbf{G}_u$ is a matrix with shape $N_V \times N_V$, whereas $\mathbf{G}_M$ is four-dimensional with 
+shape $N_V \times N_S \times d \times d$
+
+To compute the total derivative according to the chain rule, we require the tensor field derivative
+$\frac{d\mathbf{M}}{d\mathbf{m}}$. This is provided by the tensor field component through the
 [`assemble_jacobian`][eikonax.tensorfield.TensorField.assemble_jacobian] method,
 ```py
-sparse_partial_parameter = \
-    tensor_field.assemble_jacobian(solution.values.size, sparse_partial_tensor, parameter_vector)
+tensor_partial_parameter = tensor_field_object.assemble_jacobian(parameter_vector)
 ```
-This operation returns a scipy [`coo_matrix`](https://scipy.github.io/devdocs/reference/generated/scipy.sparse.coo_matrix.html)
-which is readily usable for further algebraic operations.
+$\frac{d\mathbf{M}}{d\mathbf{m}}$ is a again a fourth order tensor in [sparse COO](https://sparse.pydata.org/en/stable/api/COO/)
+format, with shape $N_S \times d \times d \times M$.
+We can now obtain $\mathbf{G}_M$ via a simple tensor dot-product,
+```py
+import sparse as spa
+
+output_partial_parameter = spa.einsum(
+    "ijkl,jklm->im", output_partial_tensor, tensor_partial_parameter
+)
+```
+which returns a sparse $N_V \times M$ matrix
 
 
 ## Derivative Solver
-With the partial derivative, we can now set up a sparse, triangular equation system for computing discrete adjoints,
+With the partial derivatives, we can now set up a sparse, triangular equation system for computing discrete adjoints,
 and subsequently the gradient $\mathbf{g}$. The rational behind this procedure is explained in more detail 
 [here][eikonax.derivator.DerivativeSolver]. We set up the solver for the equation system with the
 [`DerivativeSolver`][eikonax.derivator.DerivativeSolver] component,
 ```py
-derivative_solver = derivator.DerivativeSolver(solution.values, sparse_partial_solution)
+derivative_solver = derivator.DerivativeSolver(solution.values, output_partial_solution)
 ```
 
 We can now evaluate the discrete adjoint from a given loss gradient $\frac{dl}{d\mathbf{u}}$,
@@ -162,7 +180,7 @@ adjoint = derivative_solver.solve(loss_grad)
 We then obtain the gradient by simple multiplication of the adjoint with $\mathbf{G}_m$,
 
 ```py
-total_grad = sparse_partial_parameter.T @ adjoint
+total_grad = output_partial_parameter.T @ adjoint
 ```
 
 !!! tip "Reusability of the gradient copmutation"
@@ -178,7 +196,7 @@ $\mathbf{e}_i,\ i=1,\ldots,N_V$ as "loss gradient" $\frac{dl}{d\mathbf{u}}$. Eac
 yields a row $\mathbf{J}_i$ of the Jacobian.
 To this end, Eikonax provides the utility function [`compute_eikonax_jacobian`][eikonax.derivator.compute_eikonax_jacobian],
 ```python
-eikonax_jacobian = derivator.compute_eikonax_jacobian(derivative_solver, sparse_partial_parameter)
+eikonax_jacobian = derivator.compute_eikonax_jacobian(derivative_solver, output_partial_parameter)
 ```
 
 With finite difference, we evaluate a column $\mathbf{J}_j$

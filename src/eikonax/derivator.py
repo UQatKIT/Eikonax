@@ -23,11 +23,12 @@ import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
 import scipy as sp
+import sparse as spa
 from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 
-from . import corefunctions
+from . import corefunctions, preprocessing
 
 
 @dataclass
@@ -49,7 +50,7 @@ class PartialDerivatorData:
 
 
 # ==================================================================================================
-class PartialDerivator(eqx.Module, strict=True):
+class PartialDerivator(eqx.Module):
     r"""Component for computing partial derivatives of the Godunov Update operator.
 
     Given a tensor field $M$ and a solution vector $u$, the partial derivator computes the partial
@@ -74,6 +75,8 @@ class PartialDerivator(eqx.Module, strict=True):
     """
 
     # Equinox modules are data classes, so we need to specify attributes on class level
+    _num_vertices: int
+    _num_simplices: int
     _vertices: jtFloat[jax.Array, "num_vertices dim"]
     _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _initial_site_inds: jtInt[jax.Array, "num_initial_sites"]
@@ -85,18 +88,20 @@ class PartialDerivator(eqx.Module, strict=True):
     # ----------------------------------------------------------------------------------------------
     def __init__(
         self,
-        mesh_data: corefunctions.MeshData,
+        mesh_data: preprocessing.MeshData,
         derivator_data: PartialDerivatorData,
-        initial_sites: corefunctions.InitialSites,
+        initial_sites: preprocessing.InitialSites,
     ) -> None:
         """Constructor for the partial derivator object.
 
         Args:
-            mesh_data (corefunctions.MeshData): Mesh data object also utilized for the Eikonax
+            mesh_data (preprocessing.MeshData): Mesh data object also utilized for the Eikonax
                 solver, contains adjacency data for every vertex.
             derivator_data (PartialDerivatorData): Settings for initialization of the derivator.
-            initial_sites (corefunctions.InitialSites): Locations and values at source points
+            initial_sites (preprocessing.InitialSites): Locations and values at source points
         """
+        self._num_vertices = mesh_data.num_vertices
+        self._num_simplices = mesh_data.num_simplices
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._initial_site_inds = initial_sites.inds
@@ -110,21 +115,10 @@ class PartialDerivator(eqx.Module, strict=True):
         self,
         solution_vector: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
         tensor_field: jtFloat[jax.Array | npt.NDArray, "num_simplices dim dim"],
-    ) -> tuple[
-        tuple[
-            jtInt[jax.Array, "num_sol_values"],
-            jtInt[jax.Array, "num_sol_values"],
-            jtFloat[jax.Array, "num_sol_values"],
-        ],
-        tuple[
-            jtInt[jax.Array, "num_param_values"],
-            jtInt[jax.Array, "num_param_values"],
-            jtFloat[jax.Array, "num_param_values dim dim"],
-        ],
-    ]:
-        """Compute the partial derivatives of the Godunov update operator.
+    ) -> tuple[spa.COO, spa.COO]:
+        r"""Compute the partial derivatives of the Godunov update operator.
 
-        This method provided the main interface for computing the partial derivatives of the global
+        This method provides the main interface for computing the partial derivatives of the global
         Eikonax update operator with respect to the solution vector and the parameter tensor field.
         The updates are computed locally for each vertex, such that the resulting data structures
         are sparse. Subsequently, further zero entries are removed to reduce the memory footprint.
@@ -147,10 +141,11 @@ class PartialDerivator(eqx.Module, strict=True):
             tensor_field (jax.Array): Parameter field
 
         Returns:
-            tuple[tuple[jax.Array, jax.Array, jax.Array], tuple[jax.Array, jax.Array, jax.Array]]:
-                Partial derivatives with respect to the solution vector and the parameter tensor
-                field. Both quantities are given as arrays over all local contributions, making them
-                sparse in the global context.
+            tuple[spa.COO, spa.COO]:
+                Partial derivatives $\mathbf{G}_u$ and $\mathbf{G}_M$, both returned as
+                [sparse COO](https://sparse.pydata.org/en/stable/api/COO/) matrices. $\mathbf{G}_u$
+                has shape $N_V \times N_V$, and $\mathbf{G}_M$ has shape
+                $N_V \times N_S \times d \times d$.
         """
         solution_vector = jnp.array(solution_vector, dtype=jnp.float32)
         tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
@@ -174,28 +169,22 @@ class PartialDerivator(eqx.Module, strict=True):
         partial_derivative_solution: jtFloat[
             jax.Array, "num_vertices max_num_adjacent_simplices 2"
         ],
-    ) -> tuple[
-        jtInt[jax.Array, "num_sol_values"],
-        jtInt[jax.Array, "num_sol_values"],
-        jtFloat[jax.Array, "num_sol_values"],
-    ]:
-        """Compress the partial derivative data with respect to the solution vector.
+    ) -> spa.COO:
+        r"""Compress the partial derivative data with respect to the solution vector.
 
-        Compression consists of two steps:
+        Compression consists of three steps:
 
         1. Remove zero entries in the sensitivity vector
         2. Set the sensitivity vector to zero at the initial sites, but keep them for later
            computations.
+        3. Convert arrays to sparse COO formmat.
 
         Args:
             partial_derivative_solution (jax.Array): Raw data from partial derivative computation,
-                with shape `(N, num_adjacent_simplices, 2)`, N depends on the number of identical
-                update paths for the vertices in the mesh.
+                with shape `(N, num_adjacent_simplices, 2)`.
 
         Returns:
-            tuple[jax.Array, jax.Array, jax.Array]: Compressed data, represented as rows,
-            columns and values for initialization in sparse matrix. Shape depends on number
-                of non-zero entries
+            spa.COO: Matrix $\mathbf{G}_u$ as above
         """
         current_inds = self._adjacency_data[:, 0, 0]
         adjacent_inds = self._adjacency_data[:, :, 1:3]
@@ -209,7 +198,12 @@ class PartialDerivator(eqx.Module, strict=True):
         values_compressed = values_compressed.at[initial_site_mask].set(
             jnp.zeros(self._initial_site_inds.shape)
         )
-        return rows_compressed, columns_compressed, values_compressed
+        sparse_coo_matrix = spa.COO(
+            coords=(rows_compressed, columns_compressed),
+            data=values_compressed,
+            shape=(self._num_vertices, self._num_vertices),
+        )
+        return sparse_coo_matrix
 
     # ----------------------------------------------------------------------------------------------
     def _compress_partial_derivative_parameter(
@@ -217,45 +211,51 @@ class PartialDerivator(eqx.Module, strict=True):
         partial_derivative_parameter: jtFloat[
             jax.Array, "num_vertices max_num_adjacent_simplices dim dim"
         ],
-    ) -> tuple[
-        jtInt[jax.Array, "num_param_values"],
-        jtInt[jax.Array, "num_param_values"],
-        jtFloat[jax.Array, "num_param_values dim dim"],
-    ]:
-        """Compress the partial derivative data with respect to the parameter field.
+    ) -> spa.COO:
+        r"""Compress the partial derivative data with respect to the parameter tensor field.
 
-        Compression consists of two steps:
+        Compression consists of three steps:
 
         1. Remove tensor components from the sensitivity data, if all entries are zero
         2. Set the sensitivity vector to zero at the initial sites, but keep them for later
            computations.
+        3. Convert arrays to sparse COO format.
 
         Args:
             partial_derivative_parameter (jax.Array): Raw data from partial derivative
-                computation, with shape `(N, num_adjacent_simplices, dim, dim)`, N depends on the
-                number of identical update paths for the vertices in the mesh.
+                computation, with shape `(N, num_adjacent_simplices, dim, dim)`.
 
         Returns:
-            tuple[jax.Array, jax.Array, jax.Array]: Compressed data, represented as rows,
-                columns and values to be further processes for sparse matrix assembly.
-                Shape depends on number of non-zero entries
+            spa.COO: Matrix $\mathbf{G}_M$ as above
         """
         vertex_inds = self._adjacency_data[:, 0, 0]
         simplex_inds = self._adjacency_data[:, :, 3]
         tensor_dim = partial_derivative_parameter.shape[2]
+        tensor_inds = jnp.arange(tensor_dim, dtype=jnp.int32)
 
-        values_reduced = jnp.sum(jnp.abs(partial_derivative_parameter), axis=(2, 3))
-        nonzero_mask = jnp.nonzero(values_reduced)
+        nonzero_mask = jnp.nonzero(partial_derivative_parameter)
         rows_compressed = vertex_inds[nonzero_mask[0]]
-        simplices_compressed = simplex_inds[nonzero_mask]
+        simplices_compressed = simplex_inds[(nonzero_mask[0], nonzero_mask[1])]
+        tensor_d1_compressed = tensor_inds[nonzero_mask[2]]
+        tensor_d2_compressed = tensor_inds[nonzero_mask[3]]
         values_compressed = partial_derivative_parameter[nonzero_mask]
 
         initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
         values_compressed = values_compressed.at[initial_site_mask].set(
-            jnp.zeros((initial_site_mask[0].size, tensor_dim, tensor_dim))
+            jnp.zeros(initial_site_mask[0].size)
+        )
+        sparse_coo_matrix = spa.COO(
+            coords=(
+                rows_compressed,
+                simplices_compressed,
+                tensor_d1_compressed,
+                tensor_d2_compressed,
+            ),
+            data=values_compressed,
+            shape=(self._num_vertices, self._num_simplices, tensor_dim, tensor_dim),
         )
 
-        return rows_compressed, simplices_compressed, values_compressed
+        return sparse_coo_matrix
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
@@ -576,8 +576,8 @@ class DerivativeSolver:
     The Eikonax [`PartialDerivator`][eikonax.derivator.PartialDerivator] computes partial
     derivatives of the global update operator with respect
     to the solution vector, $\mathbf{G}_u$, and the parameter tensor field, $\mathbf{G}_M$.
-    Now we exploit the facto that the obtained solution candidate from a forward solve
-    $\mathbf{u}\in\mathbb{R}^{N_V}$ is, up to a given accuracy, is a fixed point of the
+    We exploit the fact that the obtained solution candidate from a forward solve
+    $\mathbf{u}\in\mathbb{R}^{N_V}$ is, up to a given accuracy, a fixed point of the
     global update operator. We further consider the scenario of $\mathbf{M}(\mathbf{m})$ being
     dependent on some parameter $\mathbf{m}\in\mathbb{R}^M$. This means we can write $\mathbf{u}$ as
     a function of $\mathbf{m}$, obeying the relation
@@ -664,11 +664,7 @@ class DerivativeSolver:
     def __init__(
         self,
         solution: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
-        sparse_partial_update_solution: tuple[
-            jtInt[jax.Array, "num_sol_values"],
-            jtInt[jax.Array, "num_sol_values"],
-            jtFloat[jax.Array, "num_sol_values"],
-        ],
+        sparse_partial_update_solution: spa.COO,
     ) -> None:
         r"""Constructor for the derivative solver.
 
@@ -677,18 +673,10 @@ class DerivativeSolver:
 
         Args:
             solution (jax.Array | npt.NDArray): Obtained solution of the Eikonal equation
-            sparse_partial_update_solution (tuple[jax.Array, jax.Array, jax.Array]): Sparse
-                representation of the partial derivative G_u, containing row inds, column inds and
-                values. These structures might contain redundances, which are automatically removed
-                through summation in the sparse matrix assembly later.
+            sparse_partial_update_solution (spa.COO): Matrix $\mathbf{G}_u$ in sparse COO format
         """
         num_points = solution.size
         solution = np.array(solution, dtype=np.float32)
-        sparse_partial_update_solution = (
-            np.array(sparse_partial_update_solution[0], dtype=np.int32),
-            np.array(sparse_partial_update_solution[1], dtype=np.int32),
-            np.array(sparse_partial_update_solution[2], dtype=np.float32),
-        )
         self._sparse_permutation_matrix = self._assemble_permutation_matrix(solution)
         self._sparse_system_matrix = self._assemble_system_matrix(
             sparse_partial_update_solution, num_points
@@ -729,14 +717,7 @@ class DerivativeSolver:
     def _assemble_permutation_matrix(
         self, solution: jtFloat[npt.NDArray, "num_vertices"]
     ) -> sp.sparse.csc_matrix:
-        r"""Construct permutation matrix $\mathbf{P}$ for index ordering.
-
-        Args:
-            solution (npt.NDArray): Obtained solution of the eikonal equation
-
-        Returns:
-            sp.sparse.csc_matrix: Sparse permutation matrix
-        """
+        r"""Construct permutation matrix $\mathbf{P}$ for index ordering."""
         num_points = solution.size
         permutation_row_inds = np.arange(solution.size)
         permutation_col_inds = np.argsort(solution)
@@ -751,34 +732,16 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def _assemble_system_matrix(
         self,
-        sparse_partial_update_solution: tuple[
-            jtInt[npt.NDArray, "num_sol_values"],
-            jtInt[npt.NDArray, "num_sol_values"],
-            jtFloat[npt.NDArray, "num_sol_values"],
-        ],
+        sparse_partial_update_solution: spa.COO,
         num_points: int,
     ) -> sp.sparse.csc_matrix:
         r"""Assemble system matrix $\bar{\mathbf{A}}$ for gradient solver.
 
         Before invoking this method, the permutation matrix $\mathbf{P}$ must be initialized.
-
-        Args:
-            sparse_partial_update_solution (tuple[npt.NDArray, npt.NDArray, npt.NDArray]):
-                Sparse representation of the partial derivative $G_u$, containing row inds, column
-                inds and values. These structures might contain redundances, which are
-                automatically removed through summation in the sparse matrix assembly.
-            num_points (int): Number of mesh points
-
-        Returns:
-            sp.sparse.csc_matrix: Sparse representation of the permuted system matrix
         """
-        rows_compressed, columns_compressed, values_compressed = sparse_partial_update_solution
-        sparse_partial_matrix = sp.sparse.csc_matrix(
-            (values_compressed, (rows_compressed, columns_compressed)),
-            shape=(num_points, num_points),
-        )
+        sparse_partial_update_solution = sparse_partial_update_solution.tocsc()
         sparse_identity_matrix = sp.sparse.identity(num_points, format="csc")
-        sparse_system_matrix = sparse_identity_matrix - sparse_partial_matrix
+        sparse_system_matrix = sparse_identity_matrix - sparse_partial_update_solution
         sparse_system_matrix = (
             self._sparse_permutation_matrix
             @ sparse_system_matrix.T
@@ -802,7 +765,8 @@ class DerivativeSolver:
 
 # ==================================================================================================
 def compute_eikonax_jacobian(
-    derivative_solver: DerivativeSolver, partial_derivative_parameter: sp.sparse.coo_matrix
+    derivative_solver: DerivativeSolver,
+    partial_derivative_parameter: spa.SparseArray | sp.sparse.spmatrix,
 ) -> npt.NDArray:
     """Compute Jacobian from concatenation of gradients, computed with unit vector RHS.
 
@@ -812,8 +776,8 @@ def compute_eikonax_jacobian(
 
     Args:
         derivative_solver (DerivativeSolver): Initialized derivative solver object
-        partial_derivative_parameter (sp.sparse.coo_matrix): Partial derivative of the global update
-            operator with respect to the parameter tensor field
+        partial_derivative_parameter (spa.SparseArray | sp.sparse.spmatrix):
+            Partial derivative of the global update operator with respect to the parameter vector
 
     Returns:
         npt.NDArray: (Dense) Jacobian matrix
