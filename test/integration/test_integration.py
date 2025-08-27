@@ -143,6 +143,7 @@ def test_derivative_solver_constructor_viable(setup_derivative_solve_checks):
     assert np.allclose(permutation_matrix @ permutation_matrix.T, np.identity(solution_vector.size))
 
 
+# --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_partial_derivative_parameter_viable(setup_derivative_solve_checks):
     parameter_vector, solution_vector, _, _, _, partial_derivative_parameter = (

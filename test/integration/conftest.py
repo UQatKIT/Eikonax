@@ -114,7 +114,7 @@ def configurations_and_tensorfields_2D_function(configurations_for_2D_forward_ev
     return configurations_for_2D_forward_evaluation, tensor_field
 
 
-# ============================== Setup for Paramettric Derivatives =================================
+# ============================== Setup for Parametric Derivatives ==================================
 @pytest.fixture(scope="module")
 def setup_analytical_partial_derivative_tests(
     mesh_small,
@@ -183,14 +183,14 @@ def setup_derivative_solve_checks(mesh_small):
         max_num_iterations=1000,
         loop_type="jitted_while",
         max_value=1000,
-        use_soft_update=False,
-        softminmax_order=20,
+        use_soft_update=True,
+        softminmax_order=100,
         softminmax_cutoff=1,
         log_interval=1,
     )
     derivator_data = derivator.PartialDerivatorData(
         use_soft_update=True,
-        softminmax_order=20,
+        softminmax_order=100,
         softminmax_cutoff=1,
     )
     vertices, simplices, _ = mesh_small
