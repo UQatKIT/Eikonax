@@ -49,6 +49,10 @@ def compute_softminmax(value, order):  # noqa: ANN001,ANN201
 
     The method is numerically stable, obeys the value range, and does not introduce any new extrema.
 
+    !!! note
+        The function is not typed to avoid issues with the beartype type checker in combination
+        with JAX's `custom_gradient` decorator.
+
     Args:
         value (jax.Array): variable to restrict to range [0,1]
         order (int): Approximation order of the smooth approximation
