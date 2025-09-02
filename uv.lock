@@ -417,11 +417,8 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "jupyter", marker = "sys_platform == 'linux'" },
-    { name = "matplotlib", marker = "sys_platform == 'linux'" },
-    { name = "pandas", marker = "sys_platform == 'linux'" },
     { name = "pre-commit", marker = "sys_platform == 'linux'" },
-    { name = "seaborn", marker = "sys_platform == 'linux'" },
+    { name = "ruff", marker = "sys_platform == 'linux'" },
 ]
 docs = [
     { name = "git-cliff", marker = "sys_platform == 'linux'" },
@@ -429,8 +426,13 @@ docs = [
     { name = "mkdocs-material", marker = "sys_platform == 'linux'" },
     { name = "mkdocstrings", extra = ["python"], marker = "sys_platform == 'linux'" },
 ]
-style = [
-    { name = "ruff", marker = "sys_platform == 'linux'" },
+examples = [
+    { name = "fim-python", marker = "sys_platform == 'linux'" },
+    { name = "jupyter", marker = "sys_platform == 'linux'" },
+    { name = "matplotlib", marker = "sys_platform == 'linux'" },
+    { name = "pandas", marker = "sys_platform == 'linux'" },
+    { name = "pyvista", marker = "sys_platform == 'linux'" },
+    { name = "seaborn", marker = "sys_platform == 'linux'" },
 ]
 test = [
     { name = "fim-python", marker = "sys_platform == 'linux'" },
@@ -452,11 +454,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "jupyter", specifier = ">=1.1,<1.2" },
-    { name = "matplotlib", specifier = ">=3.10,<3.11" },
-    { name = "pandas", specifier = ">=2.3,<2.4" },
     { name = "pre-commit", specifier = ">=4.3,<4.4" },
-    { name = "seaborn", specifier = ">=0.13,<0.14" },
+    { name = "ruff", specifier = ">=0.12.10" },
 ]
 docs = [
     { name = "git-cliff", specifier = ">=2.10,<2.11" },
@@ -464,7 +463,14 @@ docs = [
     { name = "mkdocs-material", specifier = ">=9.6,<9.7" },
     { name = "mkdocstrings", extras = ["python"], specifier = ">=0.30,<0.31" },
 ]
-style = [{ name = "ruff", specifier = ">=0.12,<0.13" }]
+examples = [
+    { name = "fim-python", specifier = ">=1.2,<1.3" },
+    { name = "jupyter", specifier = ">=1.1.1,<1.2" },
+    { name = "matplotlib", specifier = ">=3.10.5,<3.11" },
+    { name = "pandas", specifier = ">=2.3.2,<2.4" },
+    { name = "pyvista", specifier = ">=0.46.3" },
+    { name = "seaborn", specifier = ">=0.13.2,<0.14" },
+]
 test = [
     { name = "fim-python", specifier = ">=1.2,<1.3" },
     { name = "pytest", specifier = ">=8.4,<8.5" },
@@ -1633,6 +1639,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pooch"
+version = "1.8.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging", marker = "sys_platform == 'linux'" },
+    { name = "platformdirs", marker = "sys_platform == 'linux'" },
+    { name = "requests", marker = "sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c6/77/b3d3e00c696c16cf99af81ef7b1f5fe73bd2a307abca41bd7605429fe6e5/pooch-1.8.2.tar.gz", hash = "sha256:76561f0de68a01da4df6af38e9955c4c9d1a5c90da73f7e40276a5728ec83d10", size = 59353, upload-time = "2024-06-06T16:53:46.224Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a8/87/77cc11c7a9ea9fd05503def69e3d18605852cd0d4b0d3b8f15bbeb3ef1d1/pooch-1.8.2-py3-none-any.whl", hash = "sha256:3529a57096f7198778a5ceefd5ac3ef0e4d06a6ddaf9fc2d609b806f25302c47", size = 64574, upload-time = "2024-06-06T16:53:44.343Z" },
+]
+
+[[package]]
 name = "pre-commit"
 version = "4.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1808,6 +1828,24 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f8/bf/abbd3cdfb8fbc7fb3d4d38d320f2441b1e7cbe29be4f23797b4a2b5d8aac/pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3", size = 320884, upload-time = "2025-03-25T02:25:00.538Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/81/c4/34e93fe5f5429d7570ec1fa436f1986fb1f00c3e0f43a589fe2bbcd22c3f/pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00", size = 509225, upload-time = "2025-03-25T02:24:58.468Z" },
+]
+
+[[package]]
+name = "pyvista"
+version = "0.46.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib", marker = "sys_platform == 'linux'" },
+    { name = "numpy", marker = "sys_platform == 'linux'" },
+    { name = "pillow", marker = "sys_platform == 'linux'" },
+    { name = "pooch", marker = "sys_platform == 'linux'" },
+    { name = "scooby", marker = "sys_platform == 'linux'" },
+    { name = "typing-extensions", marker = "sys_platform == 'linux'" },
+    { name = "vtk", marker = "sys_platform == 'linux'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fe/2d/20d948877f0f1e4f56b8646c06dc723ef799ad5690bc6a0c9bbc12b32981/pyvista-0.46.3.tar.gz", hash = "sha256:1f8e6e39516d24d93bc227f278841a0d72ec3722959f612cf4616d2720a8afe1", size = 2397947, upload-time = "2025-08-26T14:00:32.315Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a5/e7/bf672c00690a8eb47d4bb9ab0f5c9368d23eb1ae373984a6eec323c6f317/pyvista-0.46.3-py3-none-any.whl", hash = "sha256:ccb2a09019cad7976cfeeeb4f00fec2087127499ded795bada9a6a39d4bff30e", size = 2448488, upload-time = "2025-08-26T14:00:30.637Z" },
 ]
 
 [[package]]
@@ -2023,6 +2061,15 @@ wheels = [
 ]
 
 [[package]]
+name = "scooby"
+version = "0.10.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/4a/052c1f309bf1f98c723b0ade80fce9190f106f1f5d67a342afab83373358/scooby-0.10.1.tar.gz", hash = "sha256:2ea147670cbf7cad42600c9990f2289f7b3c02c0769b0cc02a73e59d11c8f885", size = 20678, upload-time = "2025-04-26T17:11:06.992Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/fd/bff0921f2d6cad3a5083017abe1bcd318dc15e7a21cfa22dbdbf6dda2e11/scooby-0.10.1-py3-none-any.whl", hash = "sha256:c099a0b4b013f949436bdd4e2a6e9b4f8aba8211e2a65dc1d2d3b9317ef8d4c1", size = 18511, upload-time = "2025-04-26T17:11:05.283Z" },
+]
+
+[[package]]
 name = "seaborn"
 version = "0.13.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2213,6 +2260,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1c/14/37fcdba2808a6c615681cd216fecae00413c9dab44fb2e57805ecf3eaee3/virtualenv-20.34.0.tar.gz", hash = "sha256:44815b2c9dee7ed86e387b842a84f20b93f7f417f95886ca1996a72a4138eb1a", size = 6003808, upload-time = "2025-08-13T14:24:07.464Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/76/06/04c8e804f813cf972e3262f3f8584c232de64f0cde9f703b46cf53a45090/virtualenv-20.34.0-py3-none-any.whl", hash = "sha256:341f5afa7eee943e4984a9207c025feedd768baff6753cd660c857ceb3e36026", size = 5983279, upload-time = "2025-08-13T14:24:05.111Z" },
+]
+
+[[package]]
+name = "vtk"
+version = "9.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib", marker = "sys_platform == 'linux'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f1/c2/4208d6ef4babec1b024f64195f1224b540b0c8ffc29783b704f67315f64a/vtk-9.5.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:40b8a0b4e409f2af5de824b8aaa747951d78f4cc4fc11a5ebc13b64ed77ff4f0", size = 112276535, upload-time = "2025-08-28T19:14:25.734Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/91/c2c52f39c8a39747486724018f769cabbd34a172efbc614610c65164d365/vtk-9.5.1-cp313-cp313-manylinux_2_28_aarch64.whl", hash = "sha256:ef8fff2924923e4223cf02bd63e5e0cab5e5cd54702c0ad6eb93ac6ae603244e", size = 103785920, upload-time = "2025-08-28T19:14:32.922Z" },
 ]
 
 [[package]]
