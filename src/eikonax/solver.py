@@ -77,7 +77,7 @@ class Solution:
 
 
 # ==================================================================================================
-class Solver(eqx.Module, strict=True):
+class Solver(eqx.Module):
     r"""Eikonax solver class.
 
     The solver class is the main component for computing the solution $u$ of the Eikonal equation
