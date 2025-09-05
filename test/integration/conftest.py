@@ -51,7 +51,7 @@ def eikonax_solver_data(request):
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module", params=[10, 100], ids=["small_mesh", "large_mesh"])
-def meshes_for_2D_forward_evaluation(request):
+def meshes_for_2d_forward_evaluation(request):
     mesh_bounds_x = (0, 1)
     mesh_bounds_y = (0, 1)
     num_points_x = request.param
@@ -71,8 +71,8 @@ def meshes_for_2D_forward_evaluation(request):
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def configurations_for_2D_forward_evaluation(meshes_for_2D_forward_evaluation, eikonax_solver_data):
-    vertices, simplices = meshes_for_2D_forward_evaluation
+def configurations_for_2d_forward_evaluation(meshes_for_2d_forward_evaluation, eikonax_solver_data):
+    vertices, simplices = meshes_for_2d_forward_evaluation
     initial_sites = preprocessing.InitialSites(inds=(0,), values=(0,))
     mesh_data = preprocessing.MeshData(vertices=vertices, simplices=simplices)
     solver_data = solver.SolverData(**eikonax_solver_data)
@@ -81,28 +81,28 @@ def configurations_for_2D_forward_evaluation(meshes_for_2D_forward_evaluation, e
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def configurations_and_tensorfields_2D_uniform(configurations_for_2D_forward_evaluation):
-    simplices, *_ = configurations_for_2D_forward_evaluation
+def configurations_and_tensorfields_2d_uniform(configurations_for_2d_forward_evaluation):
+    simplices, *_ = configurations_for_2d_forward_evaluation
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
-    return configurations_for_2D_forward_evaluation, tensor_field
+    return configurations_for_2d_forward_evaluation, tensor_field
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def configurations_and_tensorfields_2D_random(configurations_for_2D_forward_evaluation):
-    simplices, *_ = configurations_for_2D_forward_evaluation
+def configurations_and_tensorfields_2d_random(configurations_for_2d_forward_evaluation):
+    simplices, *_ = configurations_for_2d_forward_evaluation
     num_simplices = simplices.shape[0]
     rng = np.random.default_rng(seed=0)
     inv_speed_values = rng.uniform(0.5, 1.5, num_simplices)
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
     tensor_field = np.einsum("i,ijk->ijk", inv_speed_values, tensor_field)
-    return configurations_for_2D_forward_evaluation, tensor_field
+    return configurations_for_2d_forward_evaluation, tensor_field
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.fixture(scope="module")
-def configurations_and_tensorfields_2D_function(configurations_for_2D_forward_evaluation):
-    simplices, vertices, *_ = configurations_for_2D_forward_evaluation
+def configurations_and_tensorfields_2d_function(configurations_for_2d_forward_evaluation):
+    simplices, vertices, *_ = configurations_for_2d_forward_evaluation
     simplex_centers = np.mean(vertices[simplices], axis=1)
     inv_speed_values = 1 / (
         1
@@ -111,7 +111,7 @@ def configurations_and_tensorfields_2D_function(configurations_for_2D_forward_ev
     )
     tensor_field = np.repeat(np.identity(2)[np.newaxis, :, :], simplices.shape[0], axis=0)
     tensor_field = np.einsum("i,ijk->ijk", inv_speed_values, tensor_field)
-    return configurations_for_2D_forward_evaluation, tensor_field
+    return configurations_for_2d_forward_evaluation, tensor_field
 
 
 # ============================== Setup for Parametric Derivatives ==================================

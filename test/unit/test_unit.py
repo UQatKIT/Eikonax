@@ -93,7 +93,7 @@ def test_compute_optimal_update_parameters(simplex_setup_and_optimal_lambda_cand
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize(
-    "lambda_input, lambda_expected",
+    ("lambda_input", "lambda_expected"),
     [
         ([0.25, 0.75], jnp.array((0, 1, 0.25, 0.75))),
         ([0.4, 0.4], jnp.array((0, 1, 0.4, -1))),

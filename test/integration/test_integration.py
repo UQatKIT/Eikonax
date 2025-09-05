@@ -3,7 +3,6 @@ import copy
 import jax.numpy as jnp
 import numpy as np
 import pytest
-import sparse as spa
 from fimpy.solver import create_fim_solver
 
 from eikonax import (
@@ -22,7 +21,7 @@ pytestmark = pytest.mark.integration
 def test_tensor_field_assemble(
     small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor,
 ):
-    data, MapObject, SimplexObject = (
+    data, MapObject, SimplexObject = (  # noqa: N806
         small_tensorfield_setup_linear_scalar_map_linear_scalar_simplex_tensor
     )
     dimension, num_simplices, parameter_vector, expected_tensor_field, _ = data
@@ -35,13 +34,13 @@ def test_tensor_field_assemble(
 
 # ================================== Integration Tests for Solver ==================================
 @pytest.mark.slow
-def test_solver_loop_types(configurations_and_tensorfields_2D_uniform):
+def test_solver_loop_types(configurations_and_tensorfields_2d_uniform):
     logger_data = logging.LoggerSettings(
         log_to_console=False,
         logfile_path=None,
     )
     logger = logging.Logger(logger_data)
-    config, tensor_field = configurations_and_tensorfields_2D_uniform
+    config, tensor_field = configurations_and_tensorfields_2d_uniform
     *_, mesh_data, solver_data, initial_sites = config
     solver_data_jitted_while = solver_data
     solver_data_nonjitted_while = copy.deepcopy(solver_data)
@@ -60,8 +59,8 @@ def test_solver_loop_types(configurations_and_tensorfields_2D_uniform):
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_solver_run_2D_uniform_tensorfield(configurations_and_tensorfields_2D_uniform):
-    config, tensor_field = configurations_and_tensorfields_2D_uniform
+def test_solver_run_2d_uniform_tensorfield(configurations_and_tensorfields_2d_uniform):
+    config, tensor_field = configurations_and_tensorfields_2d_uniform
     simplices, vertices, mesh_data, solver_data, initial_sites = config
     fimpython_solver = create_fim_solver(vertices, simplices, tensor_field, use_active_list=False)
     fimpython_solution = fimpython_solver.comp_fim(initial_sites.inds, initial_sites.values)
@@ -72,8 +71,8 @@ def test_solver_run_2D_uniform_tensorfield(configurations_and_tensorfields_2D_un
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_solver_run_2D_random_tensorfield(configurations_and_tensorfields_2D_random):
-    config, tensor_field = configurations_and_tensorfields_2D_random
+def test_solver_run_2d_random_tensorfield(configurations_and_tensorfields_2d_random):
+    config, tensor_field = configurations_and_tensorfields_2d_random
     simplices, vertices, mesh_data, solver_data, initial_sites = config
     fimpython_solver = create_fim_solver(vertices, simplices, tensor_field, use_active_list=False)
     fimpython_solution = fimpython_solver.comp_fim(initial_sites.inds, initial_sites.values)
@@ -84,8 +83,8 @@ def test_solver_run_2D_random_tensorfield(configurations_and_tensorfields_2D_ran
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
-def test_solver_run_2D_function_tensorfield(configurations_and_tensorfields_2D_function):
-    config, tensor_field = configurations_and_tensorfields_2D_function
+def test_solver_run_2d_function_tensorfield(configurations_and_tensorfields_2d_function):
+    config, tensor_field = configurations_and_tensorfields_2d_function
     simplices, vertices, mesh_data, solver_data, initial_sites = config
     fimpython_solver = create_fim_solver(vertices, simplices, tensor_field, use_active_list=False)
     fimpython_solution = fimpython_solver.comp_fim(initial_sites.inds, initial_sites.values)
