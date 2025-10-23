@@ -56,7 +56,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         id: install-deps
-        run: uv sync --all-groups
+        run: uv sync --group dev --group docs
       - name: Build MkDocs documentation
         id: build-docs
         run: uv run mkdocs build
@@ -81,7 +81,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         id: install-deps
-        run: uv sync --all-groups
+        run: uv sync --group dev --group test
       - name: Run tests with Pytest
         id: run-tests
         run: uv run pytest --cov-branch --cov-report=xml:coverage.xml
