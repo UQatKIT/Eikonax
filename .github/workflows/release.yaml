@@ -33,7 +33,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         id: install-deps
-        run: uv sync --only-group docs
+        run: uv sync --python 3.13 --group docs --group dev
       - name: Create changelog
         id: create-changelog
         run: uv run git-cliff --latest --strip all --output ${{ github.workspace }}/changelog.md
@@ -63,7 +63,7 @@ jobs:
       - name: Publish to Test-PyPI
         id: publish-testpypi
         run: |
-          uv build
+          uv build --python 3.13
           uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
       - name: Publish to PyPI
         id: publish-pypi

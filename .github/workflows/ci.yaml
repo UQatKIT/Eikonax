@@ -38,7 +38,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         id: install-deps
-        run: uv sync --only-group docs
+        run: uv sync --python 3.13 --group docs --group dev
       - name: Build MkDocs documentation
         id: build-docs
         run: uv run mkdocs build
@@ -57,7 +57,7 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         id: install-deps
-        run: uv sync --only-group test
+        run: uv sync --python 3.13 --group test --group dev
       - name: Run tests with Pytest
         id: run-tests
         run: uv run pytest
