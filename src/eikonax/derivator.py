@@ -155,107 +155,7 @@ class PartialDerivator(eqx.Module):
                 tensor_field,
             )
         )
-        sparse_partial_solution = self._compress_partial_derivative_solution(
-            partial_derivative_solution
-        )
-        sparse_partial_parameter = self._compress_partial_derivative_parameter(
-            partial_derivative_parameter
-        )
-        return sparse_partial_solution, sparse_partial_parameter
-
-    # ----------------------------------------------------------------------------------------------
-    def _compress_partial_derivative_solution(
-        self,
-        partial_derivative_solution: jtFloat[
-            jax.Array, "num_vertices max_num_adjacent_simplices 2"
-        ],
-    ) -> spa.COO:
-        r"""Compress the partial derivative data with respect to the solution vector.
-
-        Compression consists of three steps:
-
-        1. Remove zero entries in the sensitivity vector
-        2. Set the sensitivity vector to zero at the initial sites, but keep them for later
-           computations.
-        3. Convert arrays to sparse COO formmat.
-
-        Args:
-            partial_derivative_solution (jax.Array): Raw data from partial derivative computation,
-                with shape `(N, num_adjacent_simplices, 2)`.
-
-        Returns:
-            spa.COO: Matrix $\mathbf{G}_u$ as above
-        """
-        current_inds = self._adjacency_data[:, 0, 0]
-        adjacent_inds = self._adjacency_data[:, :, 1:3]
-
-        nonzero_mask = jnp.nonzero(partial_derivative_solution)
-        rows_compressed = current_inds[nonzero_mask[0]]
-        columns_compressed = adjacent_inds[nonzero_mask]
-        values_compressed = partial_derivative_solution[nonzero_mask]
-
-        initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
-        values_compressed = values_compressed.at[initial_site_mask].set(
-            jnp.zeros(self._initial_site_inds.shape)
-        )
-        sparse_coo_matrix = spa.COO(
-            coords=(rows_compressed, columns_compressed),
-            data=values_compressed,
-            shape=(self._num_vertices, self._num_vertices),
-        )
-        return sparse_coo_matrix
-
-    # ----------------------------------------------------------------------------------------------
-    def _compress_partial_derivative_parameter(
-        self,
-        partial_derivative_parameter: jtFloat[
-            jax.Array, "num_vertices max_num_adjacent_simplices dim dim"
-        ],
-    ) -> spa.COO:
-        r"""Compress the partial derivative data with respect to the parameter tensor field.
-
-        Compression consists of three steps:
-
-        1. Remove tensor components from the sensitivity data, if all entries are zero
-        2. Set the sensitivity vector to zero at the initial sites, but keep them for later
-           computations.
-        3. Convert arrays to sparse COO format.
-
-        Args:
-            partial_derivative_parameter (jax.Array): Raw data from partial derivative
-                computation, with shape `(N, num_adjacent_simplices, dim, dim)`.
-
-        Returns:
-            spa.COO: Matrix $\mathbf{G}_M$ as above
-        """
-        vertex_inds = self._adjacency_data[:, 0, 0]
-        simplex_inds = self._adjacency_data[:, :, 3]
-        tensor_dim = partial_derivative_parameter.shape[2]
-        tensor_inds = jnp.arange(tensor_dim, dtype=jnp.int32)
-
-        nonzero_mask = jnp.nonzero(partial_derivative_parameter)
-        rows_compressed = vertex_inds[nonzero_mask[0]]
-        simplices_compressed = simplex_inds[(nonzero_mask[0], nonzero_mask[1])]
-        tensor_d1_compressed = tensor_inds[nonzero_mask[2]]
-        tensor_d2_compressed = tensor_inds[nonzero_mask[3]]
-        values_compressed = partial_derivative_parameter[nonzero_mask]
-
-        initial_site_mask = jnp.where(rows_compressed == self._initial_site_inds)
-        values_compressed = values_compressed.at[initial_site_mask].set(
-            jnp.zeros(initial_site_mask[0].size)
-        )
-        sparse_coo_matrix = spa.COO(
-            coords=(
-                rows_compressed,
-                simplices_compressed,
-                tensor_d1_compressed,
-                tensor_d2_compressed,
-            ),
-            data=values_compressed,
-            shape=(self._num_vertices, self._num_simplices, tensor_dim, tensor_dim),
-        )
-
-        return sparse_coo_matrix
+        return partial_derivative_solution, partial_derivative_parameter
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
@@ -279,8 +179,7 @@ class PartialDerivator(eqx.Module):
 
         Returns:
             tuple[jax.Array, jax.Array]: Raw data for partial derivatives, with shapes
-                (N, num_adjacent_simplices, 2) and (N, num_adjacent_simplices, dim, dim), N depends
-                on the number of identical update paths for the vertices in the mesh.
+                (N, num_adjacent_simplices, 2) and (N, num_adjacent_simplices, dim, dim)
         """
         global_partial_derivative_function = jax.vmap(
             self._compute_vertex_partial_derivatives,
@@ -305,9 +204,9 @@ class PartialDerivator(eqx.Module):
 
         The method computes candidates for all respective subterms through calls to further methods.
         These candidates are filtered for feasibility by means of JAX filters.
-        The sofmin function (and its gradient) is applied to the directions of all optimal
+        The softmin function (and its gradient) is applied to the directions of all optimal
         updates to ensure differentiability, other contributions are discarded.
-        Lasty, the evaluated contributions are combined according to the form of the
+        Lastly, the evaluated contributions are combined according to the form of the
         "total differential" for the partial derivatives.
 
         Args:

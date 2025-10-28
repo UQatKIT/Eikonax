@@ -35,7 +35,6 @@ from typing import final
 import equinox as eqx
 import jax
 import jax.numpy as jnp
-import numpy as np
 import numpy.typing as npt
 import sparse as spa
 from jaxtyping import Float as jtFloat
@@ -86,8 +85,8 @@ class AbstractVectorToSimplicesMap(eqx.Module):
     def derivative(
         self, simplex_ind: jtInt[jax.Array, ""], parameters: jtReal[jax.Array, "num_parameters"]
     ) -> tuple[
-        jtReal[jax.Array, "num_parameters_local"],
-        jtReal[jax.Array, "num_parameters_local"],
+        jtReal[jax.Array, "num_parameters_local num_parameters_mapped"],
+        jtInt[jax.Array, "num_parameters_mapped"],
     ]:
         r"""Interface for vector-to-simplex mapping derivative.
 
@@ -144,8 +143,8 @@ class LinearScalarMap(AbstractVectorToSimplicesMap):
     def derivative(
         self, simplex_ind: jtInt[jax.Array, ""], _parameters: jtReal[jax.Array, "num_parameters"]
     ) -> tuple[
-        jtReal[jax.Array, "num_parameters_local"],
-        jtReal[jax.Array, "num_parameters_local"],
+        jtReal[jax.Array, "num_parameters_local num_parameters_mapped"],
+        jtInt[jax.Array, "num_parameters_mapped"],
     ]:
         """Return sparse representation of Jacobi matrix, in this case two arrays of size one.
 
@@ -157,9 +156,9 @@ class LinearScalarMap(AbstractVectorToSimplicesMap):
             tuple[jax.Array, jax.Array]: Jacobi matrix, expressed via relevant global indices and
                 matrix entries
         """
+        derivative_vals = jnp.identity(1, dtype=jnp.float32)
         global_parameter_inds = jnp.array((simplex_ind,), dtype=jnp.int32)
-        derivative_vals = jnp.ones_like(global_parameter_inds, dtype=jnp.float32)
-        return global_parameter_inds, derivative_vals
+        return derivative_vals, global_parameter_inds
 
 
 # ==================================================================================================
@@ -433,21 +432,11 @@ class TensorField(eqx.Module):
                 has dimension $N_S \times d \times d \times M$
         """
         parameter_vector = jnp.array(parameter_vector)
-        coords, values = self._assemble_jacobian_global(parameter_vector)
-        coords = [np.array(co.flatten(), dtype=np.int32) for co in coords]
-        values = np.array(values.flatten(), dtype=np.float32)
-        jacobian = spa.COO(
-            coords,
-            values,
-            shape=(
-                self._num_simplices,
-                self._simplex_tensor.dimension,
-                self._simplex_tensor.dimension,
-                parameter_vector.size,
-            ),
+        partial_derivative_values, global_parameter_inds = self._assemble_jacobian_global(
+            parameter_vector
         )
 
-        return jacobian
+        return partial_derivative_values, global_parameter_inds
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit
@@ -458,9 +447,11 @@ class TensorField(eqx.Module):
     ]:
         """Intermediate call for vectorization with `vmap` in `jit` context."""
         assemble_jacobian_global = jax.vmap(self._assemble_jacobian_local, in_axes=(0, None))
-        *coords, values = assemble_jacobian_global(self._simplex_inds, parameter_vector)
+        partial_derivative_values, global_parameter_inds = assemble_jacobian_global(
+            self._simplex_inds, parameter_vector
+        )
 
-        return coords, values
+        return partial_derivative_values, global_parameter_inds
 
     # ----------------------------------------------------------------------------------------------
     def _assemble_jacobian_local(
@@ -468,35 +459,15 @@ class TensorField(eqx.Module):
         simplex_ind: jtInt[jax.Array, ""],
         parameter_vector: jtFloat[jax.Array, "num_parameters"],
     ) -> tuple[
-        jtInt[jax.Array, "num_matrix_entries"],
-        jtInt[jax.Array, "num_matrix_entries"],
-        jtInt[jax.Array, "num_matrix_entries"],
-        jtInt[jax.Array, "num_matrix_entries"],
-        jtFloat[jax.Array, "derivative_dim_1 derivative_dim_2"],
+        jtFloat[jax.Array, "dim dim num_parameters_mapped"],
+        jtInt[jax.Array, "num_parameters_mapped"],
     ]:
         """Assembly of sparse jacobian representation for single simplex."""
         local_parameters = self._vector_to_simplices_map.map(simplex_ind, parameter_vector)
         partial_derivative_simplex = self._simplex_tensor.derivative(simplex_ind, local_parameters)
-        global_parameter_inds, map_derivative_values = self._vector_to_simplices_map.derivative(
+        map_derivative_values, global_parameter_inds = self._vector_to_simplices_map.derivative(
             simplex_ind, parameter_vector
         )
-        tensor_dim = self._simplex_tensor.dimension
-        num_tensor_entries = tensor_dim**2
-        num_global_parameters = global_parameter_inds.size
-
-        simplex_inds = simplex_ind * jnp.ones(
-            (num_tensor_entries * num_global_parameters,), dtype=jnp.int32
-        )
-        tensor_inds = jnp.arange(self._simplex_tensor.dimension)
-        tensor_d1_inds = jnp.tile(jnp.repeat(tensor_inds, tensor_dim), num_global_parameters)
-        tensor_d2_inds = jnp.tile(jnp.tile(tensor_inds, tensor_dim), num_global_parameters)
-        parameters_inds = jnp.repeat(global_parameter_inds, num_tensor_entries)
         partial_derivative_values = partial_derivative_simplex @ map_derivative_values
 
-        return (
-            simplex_inds,
-            tensor_d1_inds,
-            tensor_d2_inds,
-            parameters_inds,
-            partial_derivative_values,
-        )
+        return partial_derivative_values, global_parameter_inds
