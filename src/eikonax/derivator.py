@@ -80,7 +80,6 @@ class PartialDerivator(eqx.Module):
     _vertices: jtFloat[jax.Array, "num_vertices dim"]
     _adjacency_data: jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]
     _initial_site_inds: jtInt[jax.Array, "num_initial_sites"]
-    _initial_site_values: jtFloat[jax.Array | npt.NDArray, "num_initial_sites"]
     _use_soft_update: bool
     _softminmax_order: int
     _softminmax_cutoff: int
@@ -105,7 +104,6 @@ class PartialDerivator(eqx.Module):
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._initial_site_inds = initial_sites.inds
-        self._initial_site_values = initial_sites.values
         self._use_soft_update = derivator_data.use_soft_update
         self._softminmax_order = derivator_data.softminmax_order
         self._softminmax_cutoff = derivator_data.softminmax_cutoff
@@ -155,16 +153,19 @@ class PartialDerivator(eqx.Module):
                 tensor_field,
             )
         )
-        partial_derivative_solution = self._convert_partial_derivative_solution(
+        partial_derivative_solution = self._process_partial_derivative_solution(
             partial_derivative_solution
         )
-        partial_derivative_parameter = self._convert_partial_derivative_parameter(
+        partial_derivative_parameter = self._process_partial_derivative_parameter(
             partial_derivative_parameter
         )
         return partial_derivative_solution, partial_derivative_parameter
 
     # ----------------------------------------------------------------------------------------------
-    def _convert_partial_derivative_solution(self, partial_derivative_solution):
+    def _process_partial_derivative_solution(self, partial_derivative_solution):
+        partial_derivative_solution = partial_derivative_solution.at[
+            self._initial_site_inds, ...
+        ].set(0.0)
         max_num_adjacent_vertices = self._adjacency_data.shape[1]
         row_inds = jnp.repeat(jnp.arange(self._num_vertices), 2 * max_num_adjacent_vertices)
         col_inds = self._adjacency_data[..., 1:3].flatten()
@@ -178,7 +179,10 @@ class PartialDerivator(eqx.Module):
         return eikonax_sparse_matrix
 
     # ----------------------------------------------------------------------------------------------
-    def _convert_partial_derivative_parameter(self, partial_derivative_parameter):
+    def _process_partial_derivative_parameter(self, partial_derivative_parameter):
+        partial_derivative_parameter = partial_derivative_parameter.at[
+            self._initial_site_inds, ...
+        ].set(0.0)
         derivator_sparse_tensor = linalg.DerivatorSparseTensor(
             derivative_values=partial_derivative_parameter,
             adjacent_simplex_data=self._adjacency_data[..., 3],
