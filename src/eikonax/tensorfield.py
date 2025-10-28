@@ -1,7 +1,7 @@
 r"""Composable and differentiable parameter tensor fields.
 
 This module provides ABCs and implementations for the creation of differentiable parameter fields
-used in Eikonax. Recall that for the Eikonax solver, and particularly parameteric derivatives, we
+used in Eikonax. Recall that for the Eikonax solver, and particularly parametric derivatives, we
 require an input tensor field
 $\mathbf{M}: \mathbb{R}^M \times \mathbb{N}_0 \to \mathbb{S}_+^{d\times d}$. This means that the
 tensor field is a mapping $\mathbf{M}(\mathbf{m},s)$ that assigns, given a global parameter vector
@@ -40,6 +40,8 @@ import sparse as spa
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 from jaxtyping import Real as jtReal
+
+from . import linalg
 
 
 # ==================================================================================================
@@ -435,8 +437,13 @@ class TensorField(eqx.Module):
         partial_derivative_values, global_parameter_inds = self._assemble_jacobian_global(
             parameter_vector
         )
+        partial_derivative_data = linalg.TensorfieldSparseTensor(
+            derivative_values=partial_derivative_values,
+            parameter_inds=global_parameter_inds,
+            num_parameters_global=parameter_vector.shape[0],
+        )
 
-        return partial_derivative_values, global_parameter_inds
+        return partial_derivative_data
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit

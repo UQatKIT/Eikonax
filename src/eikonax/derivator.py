@@ -28,7 +28,7 @@ from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
 
-from . import corefunctions, preprocessing
+from . import corefunctions, linalg, preprocessing
 
 
 @dataclass
@@ -155,7 +155,35 @@ class PartialDerivator(eqx.Module):
                 tensor_field,
             )
         )
+        partial_derivative_solution = self._convert_partial_derivative_solution(
+            partial_derivative_solution
+        )
+        partial_derivative_parameter = self._convert_partial_derivative_parameter(
+            partial_derivative_parameter
+        )
         return partial_derivative_solution, partial_derivative_parameter
+
+    # ----------------------------------------------------------------------------------------------
+    def _convert_partial_derivative_solution(self, partial_derivative_solution):
+        max_num_adjacent_vertices = self._adjacency_data.shape[1]
+        row_inds = jnp.repeat(jnp.arange(self._num_vertices), 2 * max_num_adjacent_vertices)
+        col_inds = self._adjacency_data[..., 1:3].flatten()
+        values = partial_derivative_solution.flatten()
+        eikonax_sparse_matrix = linalg.EikonaxSparseMatrix(
+            row_inds=row_inds,
+            col_inds=col_inds,
+            values=values,
+            shape=(self._num_vertices, self._num_vertices),
+        )
+        return eikonax_sparse_matrix
+
+    # ----------------------------------------------------------------------------------------------
+    def _convert_partial_derivative_parameter(self, partial_derivative_parameter):
+        derivator_sparse_tensor = linalg.DerivatorSparseTensor(
+            derivative_values=partial_derivative_parameter,
+            adjacent_simplex_data=self._adjacency_data[..., 3],
+        )
+        return derivator_sparse_tensor
 
     # ----------------------------------------------------------------------------------------------
     @eqx.filter_jit

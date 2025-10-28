@@ -10,7 +10,7 @@ Classes:
 
 Functions:
     create_test_mesh: Create a simple test mesh with Scipy's Delauny functionality.
-    get_adjacent_vertex_data: Preprocess mesh data for a vertex-centered evaluation.
+    get_adjacency_data: Preprocess mesh data for a vertex-centered evaluation.
 """
 
 from collections.abc import Iterable
@@ -63,7 +63,7 @@ class MeshData:
         """Initialize data structures and convert to JAX arrays."""
         self.num_vertices = self.vertices.shape[0]
         self.num_simplices = self.simplices.shape[0]
-        self.adjacency_data = get_adjacent_vertex_data(self.simplices, self.num_vertices)
+        self.adjacency_data = get_adjacency_data(self.simplices, self.num_vertices)
         self.vertices = jnp.array(self.vertices, dtype=jnp.float32)
         self.simplices = jnp.array(self.simplices, dtype=jnp.int32)
 
@@ -134,7 +134,7 @@ def create_test_mesh(
 
 
 # --------------------------------------------------------------------------------------------------
-def get_adjacent_vertex_data(
+def get_adjacency_data(
     simplices: jtInt[jax.Array | npt.NDArray, "num_simplices 3"],
     num_vertices: Annotated[int, Is[lambda x: x > 0]],
 ) -> jtInt[jax.Array, "num_vertices max_num_adjacent_simplices 4"]:
