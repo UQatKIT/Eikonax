@@ -123,4 +123,5 @@ nav:
       - Preprocessing: api/preprocessing.md
       - Logging: api/logging.md
       - Core Functions: api/core.md
+      - Tensor Algebra: api/linalg.md
       - Finite Differences: api/finitediff.md

@@ -158,7 +158,7 @@ tensor_partial_parameter = tensor_field_object.assemble_jacobian(parameter_vecto
 ```
 The Jacobian $\frac{d\mathbf{M}}{d\mathbf{m}}$ is returned as a 
 [`TensorfieldSparseTensor`][eikonax.linalg.TensorfieldSparseTensor], which stores derivative values 
-of shape $N_S \times d \times d \times \text{num\_params\_mapped}$ together with parameter indices 
+of shape $N_S \times d \times d \times \texttt{num_params_mapped}$ together with parameter indices 
 indicating which global parameters each simplex depends on.
 
 We can now obtain $\mathbf{G}_m$ via the tensor contraction function provided by Eikonax,
