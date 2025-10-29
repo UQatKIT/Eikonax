@@ -136,39 +136,54 @@ output_partial_solution, output_partial_tensor = eikonax_derivator.compute_parti
 )
 ```
 
-$\mathbf{G}_u$ and $\mathbf{G}_M$ are both returned as
-[sparse COO matrices](https://sparse.pydata.org/en/stable/api/COO/). This is a sparse data format
-analogous to the one in [scipy](https://scipy.org/), but extensible to higher order tensors.
+$\mathbf{G}_u$ and $\mathbf{G}_M$ are returned using Eikonax's custom sparse data structures from the
+[`linalg`][eikonax.linalg] module. These structures are designed to efficiently represent the sparse 
+derivatives while maintaining JAX compatibility.
 
-$\mathbf{G}_u$ is a matrix with shape $N_V \times N_V$, whereas $\mathbf{G}_M$ is four-dimensional with 
-shape $N_V \times N_S \times d \times d$
+$\mathbf{G}_u$ is returned as an [`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix] with shape 
+$N_V \times N_V$. This is a COO-style sparse matrix representation using JAX arrays that stores row 
+indices, column indices, and values separately.
 
-To compute the total derivative according to the chain rule, we require the tensor field derivative
-$\frac{d\mathbf{M}}{d\mathbf{m}}$. This is provided by the tensor field component through the
+$\mathbf{G}_M$ is returned as a [`DerivatorSparseTensor`][eikonax.linalg.DerivatorSparseTensor], which 
+stores the partial derivatives with respect to the metric tensor field. For each vertex, it contains 
+derivative contributions from adjacent simplices in a dense local format (shape 
+$N_V \times \text{max\_neighbors} \times d \times d$) along with adjacency data mapping to global 
+simplex indices.
+
+To compute the total derivative $\mathbf{G}_m$ according to the chain rule, we require the tensor field 
+Jacobian $\frac{d\mathbf{M}}{d\mathbf{m}}$. This is provided by the tensor field component through the
 [`assemble_jacobian`][eikonax.tensorfield.TensorField.assemble_jacobian] method,
 ```py
 tensor_partial_parameter = tensor_field_object.assemble_jacobian(parameter_vector)
 ```
-$\frac{d\mathbf{M}}{d\mathbf{m}}$ is a again a fourth order tensor in [sparse COO](https://sparse.pydata.org/en/stable/api/COO/)
-format, with shape $N_S \times d \times d \times M$.
-We can now obtain $\mathbf{G}_M$ via a simple tensor dot-product,
-```py
-import sparse as spa
+The Jacobian $\frac{d\mathbf{M}}{d\mathbf{m}}$ is returned as a 
+[`TensorfieldSparseTensor`][eikonax.linalg.TensorfieldSparseTensor], which stores derivative values 
+of shape $N_S \times d \times d \times \text{num\_params\_mapped}$ together with parameter indices 
+indicating which global parameters each simplex depends on.
 
-output_partial_parameter = spa.einsum(
-    "ijkl,jklm->im", output_partial_tensor, tensor_partial_parameter
+We can now obtain $\mathbf{G}_m$ via the tensor contraction function provided by Eikonax,
+```py
+from eikonax import linalg
+
+output_partial_parameter = linalg.contract_derivative_tensors(
+    output_partial_tensor, tensor_partial_parameter
 )
 ```
-which returns a sparse $N_V \times M$ matrix
+which efficiently contracts the two sparse tensors and returns an 
+[`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix] with shape $N_V \times M$
 
 
 ## Derivative Solver
 With the partial derivatives, we can now set up a sparse, triangular equation system for computing discrete adjoints,
 and subsequently the gradient $\mathbf{g}$. The rational behind this procedure is explained in more detail 
-[here][eikonax.derivator.DerivativeSolver]. We set up the solver for the equation system with the
-[`DerivativeSolver`][eikonax.derivator.DerivativeSolver] component,
+[here][eikonax.derivator.DerivativeSolver]. 
+
+The [`DerivativeSolver`][eikonax.derivator.DerivativeSolver] requires the partial derivative 
+$\mathbf{G}_u$ in SciPy sparse format. We convert the [`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix] 
+using the [`convert_to_scipy_sparse`][eikonax.linalg.convert_to_scipy_sparse] utility function,
 ```py
-derivative_solver = derivator.DerivativeSolver(solution.values, output_partial_solution)
+output_partial_solution_scipy = linalg.convert_to_scipy_sparse(output_partial_solution)
+derivative_solver = derivator.DerivativeSolver(solution.values, output_partial_solution_scipy)
 ```
 
 We can now evaluate the discrete adjoint from a given loss gradient $\frac{dl}{d\mathbf{u}}$,
@@ -177,10 +192,13 @@ loss_grad = np.ones(solution.values.size)
 adjoint = derivative_solver.solve(loss_grad)
 ```
 
-We then obtain the gradient by simple multiplication of the adjoint with $\mathbf{G}_m$,
+We then obtain the gradient by simple multiplication of the adjoint with $\mathbf{G}_m$. Since 
+$\mathbf{G}_m$ is an [`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix], we convert it to 
+SciPy format for the matrix-vector multiplication,
 
 ```py
-total_grad = output_partial_parameter.T @ adjoint
+output_partial_parameter_scipy = linalg.convert_to_scipy_sparse(output_partial_parameter)
+total_grad = output_partial_parameter_scipy.T @ adjoint
 ```
 
 !!! tip "Reusability of the gradient copmutation"
@@ -196,7 +214,9 @@ $\mathbf{e}_i,\ i=1,\ldots,N_V$ as "loss gradient" $\frac{dl}{d\mathbf{u}}$. Eac
 yields a row $\mathbf{J}_i$ of the Jacobian.
 To this end, Eikonax provides the utility function [`compute_eikonax_jacobian`][eikonax.derivator.compute_eikonax_jacobian],
 ```python
-eikonax_jacobian = derivator.compute_eikonax_jacobian(derivative_solver, output_partial_parameter)
+eikonax_jacobian = derivator.compute_eikonax_jacobian(
+    derivative_solver, output_partial_parameter_scipy
+)
 ```
 
 With finite difference, we evaluate a column $\mathbf{J}_j$
