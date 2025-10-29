@@ -120,6 +120,8 @@ class Solver(eqx.Module):
     """
 
     # Equinox modules are data classes, so specify attributes on class level
+    _num_vertices: int
+    _num_simplices: int
     _vertices: jax.Array
     _adjacency_data: jax.Array
     _loop_type: str
@@ -154,6 +156,8 @@ class Solver(eqx.Module):
             logger (logging.Logger | None, optional): Logger object, only required for non-jitted
                 while loops. Defaults to None.
         """
+        self._num_vertices = mesh_data.num_vertices
+        self._num_simplices = mesh_data.num_simplices
         self._vertices = mesh_data.vertices
         self._adjacency_data = mesh_data.adjacency_data
         self._loop_type = solver_data.loop_type
@@ -195,6 +199,22 @@ class Solver(eqx.Module):
         Returns:
             Solution: Eikonax solution object.
         """
+        if self._num_simplices != tensor_field.shape[0]:
+            raise ValueError(
+                f"Tensor field has {tensor_field.shape[0]} simplices, "
+                f"but mesh has {self._num_simplices} simplices."
+            )
+        if self._vertices.shape[1] != tensor_field.shape[1]:
+            raise ValueError(
+                f"Vertex dimension is {self._vertices.shape[1]}, "
+                f"but tensor field has dimension {tensor_field.shape[1]}."
+            )
+        if (
+            not (self._initial_site_inds >= 0).all()
+            or not (self._initial_site_inds < self._num_vertices).all()
+        ):
+            raise ValueError("Initial site indices need to be in the range [0, num_vertices-1].")
+
         tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
         initial_guess = jnp.ones(self._vertices.shape[0]) * self._max_value
         initial_guess = initial_guess.at[self._initial_site_inds].set(self._initial_site_values)
