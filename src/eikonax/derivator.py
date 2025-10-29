@@ -22,8 +22,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
-import scipy as sp
-import sparse as spa
+import scipy.sparse as sp
 from beartype.vale import Is
 from jaxtyping import Float as jtFloat
 from jaxtyping import Int as jtInt
@@ -113,7 +112,7 @@ class PartialDerivator(eqx.Module):
         self,
         solution_vector: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
         tensor_field: jtFloat[jax.Array | npt.NDArray, "num_simplices dim dim"],
-    ) -> tuple[spa.COO, spa.COO]:
+    ) -> tuple[linalg.EikonaxSparseMatrix, linalg.DerivatorSparseTensor]:
         r"""Compute the partial derivatives of the Godunov update operator.
 
         This method provides the main interface for computing the partial derivatives of the global
@@ -139,11 +138,16 @@ class PartialDerivator(eqx.Module):
             tensor_field (jax.Array): Parameter field
 
         Returns:
-            tuple[spa.COO, spa.COO]:
-                Partial derivatives $\mathbf{G}_u$ and $\mathbf{G}_M$, both returned as
-                [sparse COO](https://sparse.pydata.org/en/stable/api/COO/) matrices. $\mathbf{G}_u$
-                has shape $N_V \times N_V$, and $\mathbf{G}_M$ has shape
-                $N_V \times N_S \times d \times d$.
+            tuple[eikonax.linalg.EikonaxSparseMatrix, eikonax.linalg.DerivatorSparseTensor]:
+                The partial derivatives G_u and G_M packaged in the project's sparse data
+                structures. [`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix] contains the
+                (row_inds, col_inds, values, shape) representation used by the project and can be
+                converted to a SciPy sparse array via the
+                [`convert_to_scipy_sparse`][eikonax.linalg.convert_to_scipy_sparse] method.
+                G_u corresponds to a square operator of shape (N_V, N_V). G_M is returned as a
+                [`DerivatorSparseTensor`][eikonax.linalg.DerivatorSparseTensor] holding the
+                per-vertex derivative values with shape (N_V, N_S_adj, d, d) and index
+                information for adjacent simplices.
         """
         solution_vector = jnp.array(solution_vector, dtype=jnp.float32)
         tensor_field = jnp.array(tensor_field, dtype=jnp.float32)
@@ -162,7 +166,31 @@ class PartialDerivator(eqx.Module):
         return partial_derivative_solution, partial_derivative_parameter
 
     # ----------------------------------------------------------------------------------------------
-    def _process_partial_derivative_solution(self, partial_derivative_solution):
+    def _process_partial_derivative_solution(
+        self,
+        partial_derivative_solution: jtFloat[
+            jax.Array, "num_vertices max_num_adjacent_simplices 2"
+        ],
+    ) -> linalg.EikonaxSparseMatrix:
+        """Convert dense partial derivatives into the project's sparse matrix representation.
+
+        This method transforms the dense vertex-wise derivative array into an
+        [`EikonaxSparseMatrix`][eikonax.linalg.EikonaxSparseMatrix] by extracting row indices,
+        column indices, and values. Derivatives at initial/boundary sites are zeroed out since
+        these vertices have fixed values.
+
+        Args:
+            partial_derivative_solution (jax.Array): Dense array of shape
+                (num_vertices, max_num_adjacent_simplices, 2). The last axis contains the
+                derivative contributions for the two neighboring vertices participating in each
+                local Godunov update stencil.
+
+        Returns:
+            eikonax.linalg.EikonaxSparseMatrix: Sparse container representing the partial
+                derivative matrix G_u with shape (num_vertices, num_vertices). Can be converted
+                to a SciPy sparse array via
+                [`convert_to_scipy_sparse`][eikonax.linalg.convert_to_scipy_sparse].
+        """
         partial_derivative_solution = partial_derivative_solution.at[
             self._initial_site_inds, ...
         ].set(0.0)
@@ -179,7 +207,28 @@ class PartialDerivator(eqx.Module):
         return eikonax_sparse_matrix
 
     # ----------------------------------------------------------------------------------------------
-    def _process_partial_derivative_parameter(self, partial_derivative_parameter):
+    def _process_partial_derivative_parameter(
+        self,
+        partial_derivative_parameter: jtFloat[
+            jax.Array, "num_vertices max_num_adjacent_simplices dim dim"
+        ],
+    ) -> linalg.DerivatorSparseTensor:
+        """Package the parameter derivative tensor into DerivatorSparseTensor.
+
+        This method wraps the dense tensor of parameter derivatives (with respect to the metric
+        tensor field) into the project's sparse tensor data structure, which pairs the derivative
+        values with simplex adjacency information.
+
+        Args:
+            partial_derivative_parameter (jax.Array): Dense array of shape
+                (num_vertices, max_num_adjacent_simplices, dim, dim). Contains the partial
+                derivatives of the update operator with respect to the metric tensor components
+                of each adjacent simplex.
+
+        Returns:
+            eikonax.linalg.DerivatorSparseTensor: Sparse tensor wrapper holding derivative values
+                and simplex connectivity metadata from ``self._adjacency_data``.
+        """
         partial_derivative_parameter = partial_derivative_parameter.at[
             self._initial_site_inds, ...
         ].set(0.0)
@@ -583,7 +632,7 @@ class DerivativeSolver:
     !!! info "Change in tooling"
         In the `DerivativeSolver`, we leave JAX and fall back to the `numpy`/`scipy` stack. While
         the sequential solver operation should not be mush slower on the CPU, we have to transfer
-        the data back grom the offloading device. We plan to implement a GPU-compatible solver with
+        the data back from the offloading device. We plan to implement a GPU-compatible solver with
         [CuPy](https://cupy.dev/) in a future version, or in JAX as soon as it offers the necessary
         linear algebra tools.
 
@@ -595,7 +644,7 @@ class DerivativeSolver:
     def __init__(
         self,
         solution: jtFloat[jax.Array | npt.NDArray, "num_vertices"],
-        sparse_partial_update_solution: spa.COO,
+        sparse_partial_update_solution: sp.sparray,
     ) -> None:
         r"""Constructor for the derivative solver.
 
@@ -603,8 +652,12 @@ class DerivativeSolver:
         permuted system matrix $\bar{\mathbf{A}}$, which is triangular.
 
         Args:
-            solution (jax.Array | npt.NDArray): Obtained solution of the Eikonal equation
-            sparse_partial_update_solution (spa.COO): Matrix $\mathbf{G}_u$ in sparse COO format
+            solution (jax.Array | npt.NDArray): Obtained solution of the Eikonal equation.
+            sparse_partial_update_solution (scipy.sparray): Sparse matrix
+                representing $\mathbf{G}_u$. Any SciPy sparse format is accepted as long
+                as it supports conversion to CSC via ``.tocsc()`` (e.g. ``coo_array``,
+                ``coo_matrix``, ``csr_matrix``). The implementation will convert it to
+                CSC internally.
         """
         num_points = solution.size
         solution = np.array(solution, dtype=np.float32)
@@ -637,7 +690,7 @@ class DerivativeSolver:
         """
         right_hand_side = np.array(right_hand_side, dtype=np.float32)
         permutated_right_hand_side = self._sparse_permutation_matrix @ right_hand_side
-        permutated_solution = sp.sparse.linalg.spsolve_triangular(
+        permutated_solution = sp.linalg.spsolve_triangular(
             self._sparse_system_matrix, permutated_right_hand_side, lower=False, unit_diagonal=True
         )
         solution = self._sparse_permutation_matrix.T @ permutated_solution
@@ -647,13 +700,13 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def _assemble_permutation_matrix(
         self, solution: jtFloat[npt.NDArray, "num_vertices"]
-    ) -> sp.sparse.csc_matrix:
+    ) -> sp.csc_matrix:
         r"""Construct permutation matrix $\mathbf{P}$ for index ordering."""
         num_points = solution.size
         permutation_row_inds = np.arange(solution.size)
         permutation_col_inds = np.argsort(solution)
         permutation_values = np.ones(solution.size)
-        sparse_permutation_matrix = sp.sparse.csc_matrix(
+        sparse_permutation_matrix = sp.csc_matrix(
             (permutation_values, (permutation_row_inds, permutation_col_inds)),
             shape=(num_points, num_points),
         )
@@ -663,15 +716,22 @@ class DerivativeSolver:
     # ----------------------------------------------------------------------------------------------
     def _assemble_system_matrix(
         self,
-        sparse_partial_update_solution: spa.COO,
+        sparse_partial_update_solution: sp.sparray,
         num_points: int,
-    ) -> sp.sparse.csc_matrix:
+    ) -> sp.csc_matrix:
         r"""Assemble system matrix $\bar{\mathbf{A}}$ for gradient solver.
 
         Before invoking this method, the permutation matrix $\mathbf{P}$ must be initialized.
+
+        Args:
+            sparse_partial_update_solution (scipy.sparse matrix-like): Sparse matrix
+                representing $\mathbf{G}_u$. Will be converted to CSC internally using
+                ``.tocsc()``.
+            num_points (int): Number of points (vertices) in the system; used to build
+                the identity matrix and shape the final system matrix.
         """
         sparse_partial_update_solution = sparse_partial_update_solution.tocsc()
-        sparse_identity_matrix = sp.sparse.identity(num_points, format="csc")
+        sparse_identity_matrix = sp.identity(num_points, format="csc")
         sparse_system_matrix = sparse_identity_matrix - sparse_partial_update_solution
         sparse_system_matrix = (
             self._sparse_permutation_matrix
@@ -683,13 +743,13 @@ class DerivativeSolver:
 
     # ----------------------------------------------------------------------------------------------
     @property
-    def sparse_system_matrix(self) -> sp.sparse.csc_matrix:
+    def sparse_system_matrix(self) -> sp.csc_matrix:
         r"""Get system matrix $\bar{\mathbf{A}}\in\mathbb{R}^{{N_V}\times {N_V}}$."""
         return self._sparse_system_matrix
 
     # ----------------------------------------------------------------------------------------------
     @property
-    def sparse_permutation_matrix(self) -> sp.sparse.csc_matrix:
+    def sparse_permutation_matrix(self) -> sp.csc_matrix:
         r"""Get permutation matrix $\mathbf{P}\in\mathbb{R}^{{N_V}\times {N_V}}$."""
         return self._sparse_permutation_matrix
 
@@ -697,7 +757,7 @@ class DerivativeSolver:
 # ==================================================================================================
 def compute_eikonax_jacobian(
     derivative_solver: DerivativeSolver,
-    partial_derivative_parameter: spa.SparseArray | sp.sparse.spmatrix,
+    partial_derivative_parameter: sp.sparray,
 ) -> npt.NDArray:
     """Compute Jacobian from concatenation of gradients, computed with unit vector RHS.
 
@@ -706,12 +766,17 @@ def compute_eikonax_jacobian(
         This method should only be used for small problems.
 
     Args:
-        derivative_solver (DerivativeSolver): Initialized derivative solver object
-        partial_derivative_parameter (spa.SparseArray | sp.sparse.spmatrix):
-            Partial derivative of the global update operator with respect to the parameter vector
+        derivative_solver (DerivativeSolver): Initialized derivative solver object.
+        partial_derivative_parameter (scipy.sparse matrix-like or numpy.ndarray):
+            Partial derivative of the global update operator with respect to the parameter
+            vector/parameters. Should support matrix-vector multiplication or transposed
+            multiplication with the adjoint vector; typical inputs are SciPy sparse
+            matrices/arrays (e.g. ``coo_array``, ``csr_matrix``) or dense NumPy arrays with
+            shape (N_V, M).
 
     Returns:
-        npt.NDArray: (Dense) Jacobian matrix
+        npt.NDArray: Dense Jacobian matrix with shape (N_V, M). Note: this routine builds
+            the full dense Jacobian and is intended only for small problems.
     """
     rhs_adjoint = np.zeros(derivative_solver.sparse_permutation_matrix.shape[0])
     jacobian = []
