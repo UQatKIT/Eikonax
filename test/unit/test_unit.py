@@ -17,10 +17,10 @@ def test_create_test_mesh(mesh_small):
 
 # --------------------------------------------------------------------------------------------------
 @staticmethod
-def test_get_adjacent_vertex_data(mesh_and_adjacency_data_small):
+def test_get_adjacency_data(mesh_and_adjacency_data_small):
     benchmark_mesh, expected_adjacency_data = mesh_and_adjacency_data_small
     benchmark_vertices, benchmark_simplices, _ = benchmark_mesh
-    adjacency_data = preprocessing.get_adjacent_vertex_data(
+    adjacency_data = preprocessing.get_adjacency_data(
         benchmark_simplices, benchmark_vertices.shape[0]
     )
     assert np.allclose(adjacency_data, expected_adjacency_data)

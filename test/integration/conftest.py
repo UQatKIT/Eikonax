@@ -1,10 +1,9 @@
 import jax.numpy as jnp
 import numpy as np
 import pytest
-import sparse as spa
 from scipy.spatial import Delaunay
 
-from eikonax import derivator, preprocessing, solver, tensorfield
+from eikonax import derivator, linalg, preprocessing, solver, tensorfield
 
 
 # ================================= Setup for Tensor Field Check ===================================
@@ -121,6 +120,7 @@ def setup_analytical_partial_derivative_tests(
 ):
     vertices, simplices, _ = mesh_small
     tensor_dim = 2
+    parameter_vector = np.ones(simplices.shape[0], dtype=np.float32)
     tensor_field = np.repeat(np.identity(tensor_dim)[np.newaxis, :, :], simplices.shape[0], axis=0)
     derivator_data = {
         "use_soft_update": True,
@@ -128,48 +128,50 @@ def setup_analytical_partial_derivative_tests(
         "softminmax_cutoff": 1,
     }
     initial_sites = {"inds": (0,), "values": (0,)}
-    input_data = (vertices, simplices, tensor_field, initial_sites, derivator_data)
+    input_data = (
+        vertices,
+        simplices,
+        parameter_vector,
+        tensor_field,
+        initial_sites,
+        derivator_data,
+    )
 
     fwd_solution = jnp.array(
         (0.0, 0.5, 1.0, 0.5, 0.8535534, 1.2071068, 1.0, 1.2071068, 1.5606602), dtype=jnp.float32
     )
-    expected_sparse_partial_solution = spa.COO(
-        coords=(
-            jnp.array([0, 0, 1, 2, 3, 4, 4, 5, 5, 6, 7, 7, 8, 8], dtype=jnp.int32),
-            jnp.array([3, 1, 0, 1, 0, 1, 3, 1, 1, 3, 3, 3, 5, 7], dtype=jnp.int32),
-        ),
-        data=jnp.array(
-            [0.0, 0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.5, 1.0, 0.5, 0.5, 0.5, 0.5],
-            dtype=jnp.float32,
-        ),
-        shape=(9, 8),
+    expected_sparse_partial_solution = np.array(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.5, 0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.0, 0.5, 0.0],
+        ],
+        dtype=np.float32,
     )
-
-    # fmt: off
-    expected_sparse_partial_tensor = spa.COO(
-        coords=(
-            jnp.array([0, 0, 0 ,0 ,1 ,2 ,3 ,4, 4, 4 ,4 ,5, 5, 5, 5,
-                       5, 5, 5, 5 ,6 ,7 ,7 ,7, 7, 7, 7, 7 ,7, 8, 8, 8, 8], dtype=jnp.int32),
-            jnp.array([1, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 2, 2, 2, 2,
-                       3, 3, 3, 3, 5, 4, 4, 4, 4, 5, 5, 5 ,5 ,7 ,7 ,7 ,7], dtype=jnp.int32),
-            jnp.array([0, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1,
-                       0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1], dtype=jnp.int32),
-            jnp.array([0, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1,
-                       0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], dtype=jnp.int32),
-        ),
-        data=jnp.array([0.,         0.,         0.,         0.,         0.25,       0.25,
-                        0.25,       0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
-                        0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
-                        0.08838835, 0.25,       0.08838835, 0.08838835, 0.08838835, 0.08838835,
-                        0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835, 0.08838835,
-                        0.08838835, 0.08838835], dtype=jnp.float32),
-        shape=(9, 8, 2, 2),
+    expected_sparse_partial_parameter = np.array(
+        [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, -0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, -0.25, 0.0, 0.0, 0.0, 0.0],
+            [0.0, -0.25, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [-0.17677669, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, -0.17677669, -0.17677669, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, -0.25, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, -0.17677669, -0.17677669, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -0.17677669],
+        ],
+        dtype=np.float32,
     )
-    # fmt: on
 
     expected_partial_derivatives = (
         expected_sparse_partial_solution,
-        expected_sparse_partial_tensor,
+        expected_sparse_partial_parameter,
     )
 
     return input_data, fwd_solution, expected_partial_derivatives
@@ -212,9 +214,11 @@ def setup_derivative_solve_checks(mesh_small):
         solution.values, parameter_field
     )
     tensor_partial_parameter = tensor_field.assemble_jacobian(parameter_vector)
-    output_partial_parameter = spa.einsum(
-        "ijkl,jklm->im", output_partial_tensor, tensor_partial_parameter
+    output_partial_parameter = linalg.contract_derivative_tensors(
+        output_partial_tensor, tensor_partial_parameter
     )
+    output_partial_solution = linalg.convert_to_scipy_sparse(output_partial_solution)
+    output_partial_parameter = linalg.convert_to_scipy_sparse(output_partial_parameter)
     derivative_solver = derivator.DerivativeSolver(solution.values, output_partial_solution)
 
     return (

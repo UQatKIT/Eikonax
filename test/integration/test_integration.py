@@ -8,6 +8,7 @@ from fimpy.solver import create_fim_solver
 from eikonax import (
     derivator,
     finitediff,
+    linalg,
     logging,
     preprocessing,
     solver,
@@ -99,59 +100,45 @@ def test_compute_partial_derivatives(setup_analytical_partial_derivative_tests):
     input_data, fwd_solution, expected_partial_derivatives = (
         setup_analytical_partial_derivative_tests
     )
-    vertices, simplices, tensor_field, initial_sites, derivator_data = input_data
+    vertices, simplices, parameter_vector, tensor_field, initial_sites, derivator_data = input_data
     initial_sites = preprocessing.InitialSites(**initial_sites)
     derivator_data = derivator.PartialDerivatorData(**derivator_data)
     mesh_data = preprocessing.MeshData(vertices=vertices, simplices=simplices)
+    tensor_on_simplex = tensorfield.InvLinearScalarSimplexTensor(dimension=vertices.shape[1])
+    tensor_field_mapping = tensorfield.LinearScalarMap()
+    tensor_field_object = tensorfield.TensorField(
+        num_simplices=simplices.shape[0],
+        vector_to_simplices_map=tensor_field_mapping,
+        simplex_tensor=tensor_on_simplex,
+    )
     eikonax_derivator = derivator.PartialDerivator(mesh_data, derivator_data, initial_sites)
-    sparse_partial_solution, sparse_partial_tensor = eikonax_derivator.compute_partial_derivatives(
+    tensor_partial_parameter = tensor_field_object.assemble_jacobian(parameter_vector)
+    output_partial_solution, output_partial_tensor = eikonax_derivator.compute_partial_derivatives(
         fwd_solution, tensor_field
     )
-    expected_sparse_partial_solution, expected_sparse_partial_tensor = expected_partial_derivatives
+    output_partial_parameter = linalg.contract_derivative_tensors(
+        output_partial_tensor, tensor_partial_parameter
+    )
+    sparse_partial_solution = linalg.convert_to_scipy_sparse(output_partial_solution).todense()
+    sparse_partial_parameter = linalg.convert_to_scipy_sparse(output_partial_parameter).todense()
+    expected_sparse_partial_solution, expected_sparse_partial_parameter = (
+        expected_partial_derivatives
+    )
 
-    for coord, expected_coord in zip(
-        sparse_partial_solution.coords, expected_sparse_partial_solution.coords, strict=True
-    ):
-        assert jnp.allclose(coord, expected_coord)
-
-    for data, expected_data in zip(
-        sparse_partial_solution.data, expected_sparse_partial_solution.data, strict=True
-    ):
-        assert jnp.allclose(data, expected_data)
-
-    for coord, expected_coord in zip(
-        sparse_partial_tensor.coords, expected_sparse_partial_tensor.coords, strict=True
-    ):
-        assert jnp.allclose(coord, expected_coord)
-
-    for data, expected_data in zip(
-        sparse_partial_tensor.data, expected_sparse_partial_tensor.data, strict=True
-    ):
-        assert jnp.allclose(data, expected_data)
+    assert np.allclose(sparse_partial_solution, expected_sparse_partial_solution)
+    assert np.allclose(sparse_partial_parameter, expected_sparse_partial_parameter)
 
 
 # --------------------------------------------------------------------------------------------------
 @pytest.mark.slow
 def test_derivative_solver_constructor_viable(setup_derivative_solve_checks):
     _, solution_vector, _, _, derivative_solver, _ = setup_derivative_solve_checks
-    system_matrix = derivative_solver.sparse_system_matrix.toarray()
-    permutation_matrix = derivative_solver.sparse_permutation_matrix.toarray()
+    system_matrix = derivative_solver.sparse_system_matrix.todense()
+    permutation_matrix = derivative_solver.sparse_permutation_matrix.todense()
     assert system_matrix.shape == (solution_vector.size, solution_vector.size)
     assert permutation_matrix.shape == (solution_vector.size, solution_vector.size)
     assert np.allclose(system_matrix, np.triu(system_matrix))
     assert np.allclose(permutation_matrix @ permutation_matrix.T, np.identity(solution_vector.size))
-
-
-# --------------------------------------------------------------------------------------------------
-@pytest.mark.slow
-def test_partial_derivative_parameter_viable(setup_derivative_solve_checks):
-    parameter_vector, solution_vector, _, _, _, partial_derivative_parameter = (
-        setup_derivative_solve_checks
-    )
-    assert partial_derivative_parameter.shape == (
-        solution_vector.size,
-        parameter_vector.size,
-    )
 
 
 # --------------------------------------------------------------------------------------------------
