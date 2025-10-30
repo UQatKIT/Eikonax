@@ -17,7 +17,6 @@ jobs:
   # Create Github release with changelog
   release:
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
     steps:
@@ -46,7 +45,6 @@ jobs:
   # Publish to PyPI
   publish-pypi:
     runs-on: ubuntu-latest
-    environment: publish
     permissions:
       id-token: write
     steps:
