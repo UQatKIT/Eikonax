@@ -27,7 +27,6 @@ dependencies = [
   "jaxtyping>=0.3",
   "numpy>=2.2",
   "scipy>=1.16",
-  "sparse>=0.17",
 ]
 
 [dependency-groups]
