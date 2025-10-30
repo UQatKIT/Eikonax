@@ -50,4 +50,4 @@ in the project root directory.
 
 ## Documentation
 
-The [documentation](https://uqatkit.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](https://github.com/UQatKIT/Eikonax/tree/main/examples)
+The [documentation](https://maximilian-kruse.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](https://github.com/maximilian-kruse/Eikonax/tree/main/examples)
