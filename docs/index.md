@@ -51,4 +51,4 @@ The API reference contains detailed explanations of all software components of E
 
 #### Examples
 
-We provide [runnable examples](https://github.com/UQatKIT/Eikonax/tree/main/examples) in our Github repository.
+We provide [runnable examples](https://github.com/maximilian-kruse/Eikonax/tree/main/examples) in our Github repository.
