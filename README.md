@@ -1,7 +1,6 @@
 
-![CI](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/main.yaml?label=CI)
+![CI](https://img.shields.io/github/actions/workflow/status/maximilian-kruse/Eikonax/ci.yaml?label=CI)
 ![Docs](https://img.shields.io/github/actions/workflow/status/UQatKIT/Eikonax/docs.yaml?label=Docs)
-![Coverage](https://img.shields.io/codecov/c/github/UQatKIT/Eikonax)
 ![Version](https://img.shields.io/pypi/v/Eikonax)
 ![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FUQatKIT%2FEikonax%2Fmain%2Fpyproject.toml)
 ![License](https://img.shields.io/github/license/UQatKIT/Eikonax) <br>
@@ -52,9 +51,3 @@ in the project root directory.
 ## Documentation
 
 The [documentation](https://uqatkit.github.io/Eikonax/) provides further information regarding usage, theoretical background, technical setup and API. Alternatively, you can check out the notebooks under [`examples`](https://github.com/UQatKIT/Eikonax/tree/main/examples)
-
-
-## Acknowledgement and License
-
-Eikonax is being developed in the research group [Uncertainty Quantification](https://www.scc.kit.edu/forschung/uq.php) at KIT.
-It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [MIT License](https://choosealicense.com/licenses/mit/).

@@ -16,7 +16,7 @@ classifiers = [
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
 ]
-urls = { repository = "https://github.com/UQatKIT/Eikonax", documentation = "https://uqatkit.github.io/Eikonax/" }
+urls = { repository = "https://github.com/maximilian-kruse/Eikonax", documentation = "https://maximilian-kruse.github.io/Eikonax/" }
 
 
 # --------------------------------------------------------------------------------------------------

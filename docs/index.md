@@ -1,4 +1,4 @@
-# Eikonax [<img src="images/uq_logo.png" width="200" height="100" alt="UQ at KIT" align="right">](https://www.scc.kit.edu/forschung/uq.php)
+# Eikonax
 
 Eikonax is a pure-Python implementation of a solver for the anisotropic eikonal equation on triangulated meshes. In particular, it focuses on domains $\Omega$ either in 2D Euclidean space, or 2D manifolds in 3D Euclidean space. For a given, space-dependent parameter tensor field $\mathbf{M}$, and a set $\Gamma$ of initially active points, Eikonax computes the arrival times $u$ according to
 
@@ -52,8 +52,3 @@ The API reference contains detailed explanations of all software components of E
 #### Examples
 
 We provide [runnable examples](https://github.com/UQatKIT/Eikonax/tree/main/examples) in our Github repository.
-
-## Acknowledgement and License
-
-Eikonax is being developed in the research group [Uncertainty Quantification](https://www.scc.kit.edu/forschung/uq.php) at KIT.
-It is partially based on the excellent [FIM-Python](https://fim-python.readthedocs.io/en/latest/) tool. Eikonax is distributed as free software under the [MIT License](https://choosealicense.com/licenses/mit/).
