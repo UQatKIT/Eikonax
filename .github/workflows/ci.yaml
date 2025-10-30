@@ -1,11 +1,14 @@
 name: CI
-run-name: Continuous Integration for PRs or non-default branches
+run-name: Continuous Integration for PRs or changes to main branch
 
 # -- Trigger Events --------------------------------------------------------------------------------
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, edited, ready_for_review]
     branches:
       - main
 
