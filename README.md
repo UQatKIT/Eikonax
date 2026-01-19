@@ -2,7 +2,7 @@
 ![CI](https://img.shields.io/github/actions/workflow/status/maximilian-kruse/Eikonax/ci.yaml?label=CI)
 ![Docs](https://img.shields.io/github/actions/workflow/status/maximilian-kruse/Eikonax/docs.yaml?label=Docs)
 ![Version](https://img.shields.io/pypi/v/Eikonax)
-![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2FUQatKIT%2FEikonax%2Fmain%2Fpyproject.toml)
+![Python Version](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilian-kruse%2FEikonax%2Fmain%2Fpyproject.toml)
 ![License](https://img.shields.io/github/license/maximilian-kruse/Eikonax)
 ![JAX](https://img.shields.io/badge/JAX-Accelerated-9cf.svg)
 ![Beartype](https://github.com/beartype/beartype-assets/raw/main/badge/bear-ified.svg)
